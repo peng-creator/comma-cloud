@@ -1,0 +1,7 @@
+.pdfWrapper {
+  height: 100%;
+  background: white;
+}
+.pdfWrapper > div {
+  height: 100% !important;
+}
