@@ -24,7 +24,7 @@ import {
   updateTree
 } from "react-mosaic-component";
 import classNames from 'classnames';
-
+import { Icon } from "@blueprintjs/core";
 import "react-mosaic-component/react-mosaic-component.css";
 import "@blueprintjs/core/lib/css/blueprint.css";
 import "@blueprintjs/icons/lib/css/blueprint-icons.css";
@@ -36,6 +36,7 @@ import { search$, searchSentence } from "../../state/search";
 import { TapCache } from "../../compontent/TapCache/TapCache";
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { playSubtitle$ } from "../../state/video";
+import { openNote$ } from "../CardMaker/CardMaker";
 
 // iOS only
 window.addEventListener('statusTap', function () {
@@ -120,7 +121,8 @@ export const App = () => {
       const path = getPathToCorner(currentNode, Corner.TOP_RIGHT);
       const parent = getNodeAtPath(currentNode, dropRight(path)) as MosaicParent<number>;
       const destination = getNodeAtPath(currentNode, path) as MosaicNode<number>;
-      const direction: MosaicDirection = parent ? getOtherDirection(parent.direction) : 'row';
+      // const direction: MosaicDirection = parent ? getOtherDirection(parent.direction) : 'row';
+      const direction: MosaicDirection = 'row';
 
       let first: MosaicNode<number>;
       let second: MosaicNode<number>;
@@ -166,9 +168,40 @@ export const App = () => {
             id: zones.length + 1,
             title: arr[arr.length - 1],
             type: "video",
+            fullScreen: false,
             data: {
               filePath: file,
               subtitle: sub,
+            },
+          },
+        ]);
+        addToTopRight();
+      },
+    })
+    return () => {
+      sp.unsubscribe();
+    };
+  }, [zones, addToTopRight]);
+
+  useEffect(() => {
+    const sp = openNote$.subscribe({
+      next(note) {
+        const {file} = note;
+        if (!file) {
+          message.warn('没有文件路径！');
+          return;
+        }
+        const arr = file.split("/");
+        setZones([
+          ...zones,
+          {
+            id: zones.length + 1,
+            title: arr[arr.length - 1],
+            type: "pdf",
+            fullScreen: false,
+            data: {
+              filePath: file,
+              note,
             },
           },
         ]);
@@ -197,6 +230,7 @@ export const App = () => {
               id: zones.length + 1,
               title: arr[arr.length - 1],
               type: "pdf",
+              fullScreen: false,
               data: {
                 filePath,
               },
@@ -214,6 +248,7 @@ export const App = () => {
               id: zones.length + 1,
               title: arr[arr.length - 1],
               type: "video",
+              fullScreen: false,
               data: {
                 filePath,
               },
@@ -250,6 +285,7 @@ export const App = () => {
                   id: zones.length + 1,
                   title: "词典",
                   type: "dict",
+                  fullScreen: false,
                   data: {
                     name: "有道",
                     template: "https://mobile.youdao.com/dict?le=eng&q={}",
@@ -270,6 +306,7 @@ export const App = () => {
                   id: zones.length + 1,
                   title: "卡片编辑器",
                   type: "cardMaker",
+                  fullScreen: false,
                   data: {
                     // name: "有道",
                     // template: "http://mobile.youdao.com/dict?le=eng&q={}",
@@ -333,6 +370,28 @@ export const App = () => {
                   dragWindowEnd$.next(true);
                 }}
                 toolbarControls={React.Children.toArray([
+                  <Button type="text" onClick={(e) => {
+                    if (isFullScreen) {
+                      document.exitFullscreen();
+                      setIsFullScreen(false);
+                    } else {
+                      const findParentMosaicTile = (target: HTMLElement): HTMLElement => {
+                        const parent = target.parentElement;
+                        if (!parent) {
+                          return target;
+                        }
+                        if (parent.className.includes('mosaic-tile')) {
+                          return target;
+                        }
+                        return findParentMosaicTile(parent);
+                      }
+                      const zoneToBeFullScreen = findParentMosaicTile(e.target as HTMLElement);
+                      console.log('zoneToBeFullScreen:', zoneToBeFullScreen);
+                      zoneToBeFullScreen?.requestFullscreen().then(() => {
+                        setIsFullScreen(true);
+                      });
+                    }
+                  }}><Icon style={{position: 'relative', top: '-3px'}} icon="fullscreen" size={12} color="#5f6b7c" /></Button>,
                   <RemoveButton />,
                 ])}
                 title={zones[count - 1].title}

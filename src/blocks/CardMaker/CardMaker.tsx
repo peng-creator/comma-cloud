@@ -42,12 +42,11 @@ const newFlashCard = (keyword: string): FlashCard => {
     repetition: 0,
     efactor: 2.5,
     clean: true,
-    hasChanged: false,
   };
 };
 
 export const pdfNote$ = new Subject<PDFNote>();
-export const openNote$ = new BehaviorSubject<PDFNote | null>(null);
+export const openNote$ = new Subject<PDFNote>();
 export const saveCard$ = new Subject<FlashCard>();
 
 export const addSubtitle$ = new Subject<Subtitle>();
@@ -71,6 +70,9 @@ const Component = () => {
         searchRef.current?.blur();
         setSearchFocus(false);
         setSearchName(content);
+        searchCardCollections(content).then((collections) =>
+          setSearchResultList(collections)
+        );
       },
     });
     return () => {
@@ -87,7 +89,6 @@ const Component = () => {
         }
         currentCard.front.subtitles.push(subtitle);
         currentCard.clean = false;
-        currentCard.hasChanged = true;
         saveCard(currentCard);
         setFlashCards([...flashCards]);
       },
@@ -110,7 +111,7 @@ const Component = () => {
         }
         currentCard.front.pdfNote.push(note);
         currentCard.clean = false;
-        currentCard.hasChanged = true;
+        saveCard(currentCard);
         setFlashCards([...flashCards]);
       },
     });
@@ -139,13 +140,14 @@ const Component = () => {
     <div
       style={{
         display: "flex",
-        flexDirection: "column",
+        // flexDirection: "column",
         width: "100%",
         height: "100%",
         overflow: "hidden",
         position: "relative",
       }}
     >
+      <div style={{width: '100%'}}>
       <Input
         style={{ width: "100%" }}
         placeholder="搜索卡片"
@@ -162,6 +164,7 @@ const Component = () => {
           } else {
             setCurrentCollectionName("");
             getCardCollections().then((res) => setCardCollections(res));
+            setSearchResultList([]);
           }
         }}
         onKeyDown={(e) => {
@@ -178,9 +181,9 @@ const Component = () => {
         ref={searchRef}
       />
       {/* 没有搜索内容时，显示全部 */}
-      {(searchFocus || currentCollectionName === "") && searchName === "" && (
+      {searchResultList.length === 0 && (
         <Virtuoso
-          style={{ height: "100%" }}
+          style={{ height: "calc(100% - 32px)" }}
           totalCount={cardCollections.length}
           itemContent={(index) => {
             const collection = cardCollections[index];
@@ -202,9 +205,9 @@ const Component = () => {
           }}
         />
       )}
-      {searchFocus && searchName && searchResultList.length > 0 && (
+      {searchResultList.length > 0 && (
         <Virtuoso
-          style={{ height: "100%" }}
+          style={{ height: "calc(100% - 32px)" }}
           totalCount={searchResultList.length}
           itemContent={(index) => {
             const { id, match, score, terms } = searchResultList[index];
@@ -245,11 +248,13 @@ const Component = () => {
           }}
         />
       )}
-      {!searchFocus && currentCollectionName && (
+      </div>
+
+      {currentCollectionName && (
         <div
           style={{
             display: "flex",
-            height: "calc(100% - 32px)",
+            height: "100%",
             width: "100%",
             overflow: "hidden",
             flexDirection: "column",
@@ -289,17 +294,6 @@ const Component = () => {
                     }}
                   >
                     {card.clean && "*"} {stringFolder(card.front.word, 10)}
-                    {card.hasChanged && (
-                      <span
-                        style={{
-                          width: "6px",
-                          height: "6px",
-                          borderRadius: "50%",
-                          backgroundColor: "white",
-                          marginLeft: "6px",
-                        }}
-                      ></span>
-                    )}
                   </Button>
                 </div>
               );
@@ -343,7 +337,6 @@ const Component = () => {
                         );
                       const nextCard: FlashCard = {
                         ...currentCard,
-                        hasChanged: true,
                       };
                       nextCard.front.subtitles = updatedSubtitles;
                       const currentCardIndex = flashCards.findIndex(
@@ -356,6 +349,7 @@ const Component = () => {
                       ];
                       setFlashCards(nextCards);
                       setCurrentCard(nextCard);
+                      saveCard(currentCard);
                     };
                     return (
                       <div
@@ -369,33 +363,36 @@ const Component = () => {
                         }}
                       >
                         <div style={{ margin: "0 14px" }}>-{index}.</div>
-                        <LazyInput  
+                        <LazyInput
                           onWordClick={() => {
                             playSubtitle$.next(subtitle);
                           }}
-                          value={file} 
+                          value={file}
                           displayValueTo={(file) => {
                             const li = file.split("/");
                             return li[li.length - 1];
                           }}
                           onChange={(updatedFilePath: string) => {
                             const updatedSubtitle = {
-                              ...subtitle, file: updatedFilePath,
+                              ...subtitle,
+                              file: updatedFilePath,
                             };
-                            currentCard.front.subtitles[index] = updatedSubtitle;
-                            saveCard(currentCard);
-                            const nextCard = {...currentCard};
+                            currentCard.front.subtitles[index] =
+                              updatedSubtitle;
+                            const nextCard = { ...currentCard };
                             setCurrentCard(nextCard);
-                            const currentIndex = flashCards.indexOf(currentCard);
+                            const currentIndex =
+                              flashCards.indexOf(currentCard);
                             setFlashCards([
                               ...flashCards.slice(0, currentIndex),
                               nextCard,
                               ...flashCards.slice(currentIndex + 1),
-                            ])
+                            ]);
+                            saveCard(nextCard);
                           }}
                         />
                         <div
-                          style={{marginLeft: '20px'}}
+                          style={{ marginLeft: "20px" }}
                           tabIndex={0}
                           onClick={() => {
                             deleteSubtitle();
@@ -412,21 +409,20 @@ const Component = () => {
                     );
                   })}
                   {(currentCard.front.pdfNote || []).map((pdfNote, index) => {
-                    const { mergedStr } = pdfNote;
+                    const { file } = pdfNote;
+                    const fileName = file.split("/").pop();
                     return (
-                      <div
-                        key={index}
-                        tabIndex={0}
-                        onClick={() => {
-                          openNote$.next(pdfNote);
-                          if (pdfNote.file) {
-                            // openPdf$.next(pdfNote.file);
-                          }
-                        }}
-                        onKeyDown={() => {}}
-                        style={{ cursor: "pointer" }}
-                      >
-                        [pdf] {stringFolder(mergedStr, 60)}
+                      <div key={index} style={{display: 'flex'}}>
+                        <div
+                          tabIndex={0}
+                          onClick={() => {
+                            openNote$.next(pdfNote);
+                          }}
+                          onKeyDown={() => {}}
+                          style={{ cursor: "pointer", marginRight: '14px' }}
+                        >
+                          [pdf] {stringFolder(fileName || file, 60)}
+                        </div>
                         <Popconfirm
                           title="删除"
                           onConfirm={() => {
@@ -436,7 +432,6 @@ const Component = () => {
                               );
                             const nextCard: FlashCard = {
                               ...currentCard,
-                              hasChanged: true,
                             };
                             nextCard.front.pdfNote = updatedPdfNote;
                             const currentCardIndex = flashCards.findIndex(
@@ -449,6 +444,7 @@ const Component = () => {
                             ];
                             setFlashCards(nextCards);
                             setCurrentCard(nextCard);
+                            saveCard(nextCard);
                           }}
                         >
                           <div
@@ -481,7 +477,6 @@ const Component = () => {
                   onChange={(e) => {
                     currentCard.back = e.target.value;
                     currentCard.clean = false;
-                    currentCard.hasChanged = false;
                     setFlashCards([...flashCards]);
                   }}
                   onKeyDown={(e) => {

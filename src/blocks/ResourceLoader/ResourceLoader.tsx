@@ -82,8 +82,8 @@ export const ResourceLoader = ({ visible, onClose, onOpenPDF, onOpenVideo }: {
     <div style={{ flexGrow: 1 }}>
         {pdfs.map((pdfFile, index) => {
           const openPdf = () => {
-            const filePath = 'http://192.168.50.222:8080/resource' + currDir + '/' + pdfFile;
-            onOpenPDF(filePath);
+            const relativePath = currDir + '/' + pdfFile;
+            onOpenPDF(relativePath);
           };
           return (
             <div

@@ -6,10 +6,11 @@ import { PDFView } from '../PDFView/PDFView';
 import { Video } from '../Video/Video';
 import styles from './Zone.module.css';
 import { dragWindowEnd$, dragWindowStart$, isDraggingSplitBar$ } from "../../state/zone";
+import { PDFViewer } from '../PDFViewer/PDFViewer';
 
 const ZoneMapping: { [key in ZoneType]: (...args: any[]) => JSX.Element | null} = {
   dict: Dict,
-  pdf: PDFView,
+  pdf: PDFViewer,
   video: Video,
   cardMaker: CardMaker,
 };
@@ -43,9 +44,9 @@ export const Zone = ({difinition} : {difinition: ZoneDefinition}) => {
   const Component = ZoneMapping[difinition.type];
 
   if (Component) {
-    return <div style={{ position:'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column'}}>
+    return <div id={`zone-${difinition.id}`} style={{ position:'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', padding: '0 14px'}}>
       {showMask && <div style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1}}></div>}
-      <Component data={difinition.data} style={{
+      <Component {...difinition.data} style={{
         display: 'flex',
         flexDirection: 'column',
         width: '100%',

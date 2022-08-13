@@ -5,4 +5,5 @@ export type ZoneDefinition = {
   type: ZoneType;
   data: any;
   title: string;
+  fullScreen: boolean;
 };

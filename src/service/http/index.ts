@@ -1,7 +1,8 @@
 import axios from 'axios';
+import { host } from '../../utils/host';
 
 const instance = axios.create({
-  baseURL: 'http://192.168.50.222:8080/api/',
+  baseURL: `http://${host}:8080/api/`,
   timeout: 5000,
   // headers: {'X-Custom-Header': 'foobar'}
 });

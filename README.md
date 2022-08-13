@@ -1,4 +1,4 @@
-# Build Your First Ionic App: Photo Gallery (Ionic React and Capacitor)
+# Build Your First Comma: Photo Gallery (Ionic React and Capacitor)
 
 Get started with Ionic by building a photo gallery app that runs on iOS, Android, and the web - with just one codebase. This is the complete project referenced in the ["Your First App: React" guide](https://ionicframework.com/docs/react/your-first-app). Follow along to create a complete CRUD (create-read-update-delete) experience.
 

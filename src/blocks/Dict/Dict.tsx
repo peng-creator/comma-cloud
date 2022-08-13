@@ -3,20 +3,20 @@ import { Subject } from "rxjs";
 import { search$ } from "../../state/search";
 
 type DictData = {
-  name: string;
-  template: string;
+
 };
 
 export const focusSearch$ = new Subject<void>();
 
 export const Dict = ({
   style,
-  data,
+  name,
+  template,
 }: {
   style?: CSSProperties;
-  data: DictData;
+  name: string;
+  template: string;
 }) => {
-  const { template, name } = data;
   const [searchContent, setSearchContent] = useState("");
 
   useEffect(() => {

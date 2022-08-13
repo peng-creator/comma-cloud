@@ -1,11 +1,9 @@
-export type MarkMap = {
-  [key: string]: string | undefined | boolean;
-};
 
 export type PDFNote = {
-  firstKey: string;
-  mergedStr: string;
-  marks: MarkMap;
-  file?: string;
+  page: number;
+  file: string;
+  start: number;
+  end: number;
+  content: string;
   id?: string;
 };

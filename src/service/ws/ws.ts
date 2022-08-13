@@ -1,6 +1,6 @@
 import { map, Observable, Subject, Subscription } from "rxjs";
 import { tapSearch$, textSearch$ } from "../../state/search";
-import { outputClipboard$, receiveClipboard$ } from "../../utils/clipboard";
+import { host } from "../../utils/host";
 
 const newConnection = ({
   address,
@@ -21,7 +21,6 @@ const newConnection = ({
     onOpen(ws);
     pingTimer = setInterval(() => {
       ws.send('__ping__');
-      console.log('__ping__');
       timeoutTimer = setTimeout(function () {
         ws.close();
         clearInterval(pingTimer);
@@ -35,7 +34,6 @@ const newConnection = ({
   { 
     const msg = evt.data;
     if (msg === '__pong__') {
-      console.log('__pong__');
       clearTimeout(timeoutTimer);
       return;
     }
@@ -105,12 +103,10 @@ const openWebsocketStreaming = (address: string, inputStreams: InputStreams, out
 }
 
 
-openWebsocketStreaming('ws://192.168.50.222:8080', {
+openWebsocketStreaming(`ws://${host}:8080`, {
   search: tapSearch$,
-  clipboard: outputClipboard$,
 }, {
   search: textSearch$,
-  clipboard: receiveClipboard$,
 }); // sync search
 
 

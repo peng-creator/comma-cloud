@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import { useObservable } from "../../state";
 import { tapCache$ } from "../../state/search";
+import { stringFolder } from "../../utils/string";
 
 export const TapCache = () => {
   const [tapCache] = useObservable(tapCache$, "");
@@ -30,7 +31,7 @@ export const TapCache = () => {
           width: "100%",
         }}
       >
-        <span>{tapCache}</span>
+        <span>{stringFolder(tapCache, 100)}</span>
       </div>
     </div>
   );

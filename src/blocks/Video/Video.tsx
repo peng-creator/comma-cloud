@@ -36,15 +36,17 @@ import { searchSentence, tapWord$ } from "../../state/search";
 import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 import { Resizable } from "re-resizable";
 import { addSubtitle$ } from "../CardMaker/CardMaker";
+import { host } from "../../utils/host";
 
 export const Video = ({
-  data,
+  filePath,
+  subtitle,
   style,
 }: {
-  data: { filePath: string; subtitle?: Subtitle };
   style: CSSProperties;
+  filePath: string; 
+  subtitle?: Subtitle;
 }) => {
-  const { filePath, subtitle } = data;
   const [subtitles, _setSubtitles] = useState([] as Subtitle[]);
   const ref = useRef<ReactPlayer | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -198,7 +200,7 @@ export const Video = ({
   }, [filePath]);
 
   const player = ref.current;
-  const url = "http://192.168.50.222:8080/resource" + filePath;
+  const url = `http://${host}:8080/resource` + filePath;
   console.log("play url:", url);
 
   return (
