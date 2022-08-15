@@ -7,12 +7,14 @@ import { Video } from '../Video/Video';
 import styles from './Zone.module.css';
 import { dragWindowEnd$, dragWindowStart$, isDraggingSplitBar$ } from "../../state/zone";
 import { PDFViewer } from '../PDFViewer/PDFViewer';
+import { SubtitleComponent } from '../Subtitle/Subtitle';
 
 const ZoneMapping: { [key in ZoneType]: (...args: any[]) => JSX.Element | null} = {
   dict: Dict,
   pdf: PDFViewer,
   video: Video,
   cardMaker: CardMaker,
+  subtitle: SubtitleComponent,
 };
 
 export const Zone = ({difinition} : {difinition: ZoneDefinition}) => {

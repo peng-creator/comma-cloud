@@ -37,6 +37,7 @@ import { TapCache } from "../../compontent/TapCache/TapCache";
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { playSubtitle$ } from "../../state/video";
 import { openNote$ } from "../CardMaker/CardMaker";
+import { openStandaloneSubtitle$ } from "../../state/subtitle";
 
 // iOS only
 window.addEventListener('statusTap', function () {
@@ -177,9 +178,46 @@ export const App = () => {
         ]);
         addToTopRight();
       },
-    })
+    });
+    const sp1 = openStandaloneSubtitle$.subscribe({
+      next({
+        title,
+        filePath,
+        player,
+        subtitles$,
+        loopingSubtitle$,
+        scrollToIndex$,
+        onSubtitlesChange,
+        onScrollToIndexChange,
+        onLoopingSubtitleChange,
+        onPlayingChange,
+      }) {
+        setZones([
+          ...zones,
+          {
+            id: zones.length + 1,
+            title,
+            type: 'subtitle',
+            fullScreen: false,
+            data: {
+              filePath,
+              player,
+              subtitles$,
+              loopingSubtitle$,
+              scrollToIndex$,
+              onSubtitlesChange,
+              onScrollToIndexChange,
+              onLoopingSubtitleChange,
+              onPlayingChange,
+            },
+          },
+        ]);
+        addToTopRight();
+      },
+    });
     return () => {
       sp.unsubscribe();
+      sp1.unsubscribe();
     };
   }, [zones, addToTopRight]);
 
