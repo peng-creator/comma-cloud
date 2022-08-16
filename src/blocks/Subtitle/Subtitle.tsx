@@ -295,7 +295,7 @@ export const SubtitleComponent = ({
                       }
                       onPlayingChange(true);
                       if (player !== null) {
-                        player.seekTo(item.start / 1000, "seconds");
+                        player.seekTo((item.start + 10) / 1000, "seconds");
                         onLoopingSubtitleChange(item);
                         onScrollToIndexChange(index);
                       }
