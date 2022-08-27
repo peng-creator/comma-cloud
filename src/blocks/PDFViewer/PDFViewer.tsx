@@ -1,4 +1,4 @@
-import { Button, Pagination } from "antd";
+import { Button, message, Pagination } from "antd";
 import React, { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Document, Page, pdfjs } from "./react-pdf";
 import styles from "./PDFViewer.module.css";
@@ -60,8 +60,19 @@ function _InnerPdf({filePath, onGetNumPages, onGetPageLoaded, pageRef, pageNumbe
       height={fitHeight ? pageHeight : undefined}
       onRenderTextLayerSuccess={() => {
         if (pageRef.current) {
-          const words = pageRef.current.querySelectorAll('.pdf_page_word');
+          const words = (pageRef.current as HTMLDivElement).querySelectorAll('.pdf_page_word');
           console.log(words);
+          // Array.from(words).forEach((wordEl) => {
+          //   wordEl.addEventListener('touchstart', (e) => {
+          //     console.log('touchstart:', e);
+          //   });
+          //   wordEl.addEventListener('touchmove', (e) => {
+          //     console.log('touchmove:', e);
+          //   });
+          //   wordEl.addEventListener('touchend', (e) => {
+          //     console.log('touchend:', e);
+          //   });
+          // })
           onGetWordIndexMap(Array.from(words).reduce((acc, curr, index) => {
             (acc as any).set(curr, index);
             return acc;
@@ -152,7 +163,7 @@ function Component({filePath: file, note}:{ filePath: string; note?: PDFNote }) 
   const highlight = useCallback((start: number, end: number) => {
     wordIndexMap.forEach((index, ele) => {
       if (index >= start && index <= end) {
-        ele.style.background = 'rgba(244, 208, 4, 0.2)';
+        ele.style.background = 'rgba(35, 44, 58, 0.2)';
       } else {
         ele.style.background = 'none';
       }
@@ -210,8 +221,7 @@ function Component({filePath: file, note}:{ filePath: string; note?: PDFNote }) 
     }
   };
 
-  const checkSelect = (e: any) => {
-    const target = e.target as HTMLDivElement;
+  const checkSelect = (target: HTMLDivElement) => {
     // console.log('checkSelect target:', target);
     if (target.classList.contains('pdf_page_word') && isSelecting) {
       const index = wordIndexMap.get(target);
@@ -226,7 +236,10 @@ function Component({filePath: file, note}:{ filePath: string; note?: PDFNote }) 
     }
   };
   const checkSelectEnd = (e: any) => {
-    const target = e.target as HTMLDivElement;
+    // const target = e.target as HTMLDivElement;
+    const changedTouch = e.changedTouches[0];
+    const target: HTMLDivElement = document.elementFromPoint(changedTouch.clientX, changedTouch.clientY) as any;
+    
     console.log('checkSelectEnd')
     setIsSelecting(false);
     const targetIsWordEl = target.classList.contains('pdf_page_word');
@@ -423,9 +436,37 @@ function Component({filePath: file, note}:{ filePath: string; note?: PDFNote }) 
             width: `${placeholderWidth}px`,
           }}
           className={styles.pdfWrapper}
-          onPointerDown={(e) => {
-            console.log('e.nativeEvent.pointerId:', e.nativeEvent.pointerId);
-            (e.target as any).releasePointerCapture(e.nativeEvent.pointerId);
+          // onPointerDown={(e) => {
+          //   console.log('e.nativeEvent.pointerId:', e.nativeEvent.pointerId);
+          //   (e.target as any).releasePointerCapture(e.nativeEvent.pointerId);
+          //   if (selectLongPressTimer) {
+          //     clearTimeout(selectLongPressTimer);
+          //   }
+          //   setPointerDownTarget(e.target as HTMLElement);
+          //   setSelectLongPressTimer(setTimeout(() => {
+          //     checkSelectStart(e);
+          //     setSelectLongPressTimer(null);
+          //   }, 500))
+          // }}
+          // onPointerMove={(e) => {
+          //   if (e.target !== pointerDownTarget) {
+          //     if (selectLongPressTimer !== null) {
+          //       clearTimeout(selectLongPressTimer);
+          //       setSelectLongPressTimer(null);
+          //     }
+          //     checkSelect(e);
+          //   }
+          // }}
+    
+          // onPointerUp={(e) => {
+          //   checkSelectEnd(e);
+          //   if (selectLongPressTimer) {
+          //     clearTimeout(selectLongPressTimer);
+          //     setSelectLongPressTimer(null);
+          //   }
+          // }}
+          onTouchStart={(e) => {
+            e.stopPropagation();
             if (selectLongPressTimer) {
               clearTimeout(selectLongPressTimer);
             }
@@ -435,17 +476,20 @@ function Component({filePath: file, note}:{ filePath: string; note?: PDFNote }) 
               setSelectLongPressTimer(null);
             }, 500))
           }}
-          onPointerMove={(e) => {
-            if (e.target !== pointerDownTarget) {
+          onTouchMove={(e) => {
+            e.stopPropagation();
+            const changedTouch = e.changedTouches[0];
+            const elem = document.elementFromPoint(changedTouch.clientX, changedTouch.clientY) as any;
+            if (elem !== pointerDownTarget) {
               if (selectLongPressTimer !== null) {
                 clearTimeout(selectLongPressTimer);
                 setSelectLongPressTimer(null);
               }
-              checkSelect(e);
+              checkSelect(elem);
             }
           }}
-    
-          onPointerUp={(e) => {
+          onTouchEnd={(e) => {
+            e.stopPropagation();
             checkSelectEnd(e);
             if (selectLongPressTimer) {
               clearTimeout(selectLongPressTimer);
