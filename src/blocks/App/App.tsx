@@ -399,6 +399,9 @@ export const App = () => {
             blueprintNamespace="bp4"
             className={THEMES['Blueprint Dark']}
             zeroStateView={<div>没有打开的窗口</div>}
+            resize={{
+              minimumPaneSizePercentage: 0
+            }}
             renderTile={(count: number, path: any) => (
               <MosaicWindowNumber
                 onDragStart={() => {
