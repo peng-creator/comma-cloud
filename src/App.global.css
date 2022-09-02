@@ -495,3 +495,15 @@ body {
   width: 0px;
   height: 0px;
 }
+
+.pdf-container.pure-text-mode canvas{
+  visibility: hidden;
+}
+
+.pdf-container.pure-text-mode .canvas-placeholder {
+  background: none !important;
+}
+
+.pdf-container.pure-text-mode .pdf_page_word {
+  color: antiquewhite;
+}

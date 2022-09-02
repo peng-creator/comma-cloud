@@ -1,4 +1,4 @@
-import { Button, message, Pagination } from "antd";
+import { Button, Input, message, Pagination, Switch } from "antd";
 import React, { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Document, Page, pdfjs } from "./react-pdf";
 import styles from "./PDFViewer.module.css";
@@ -9,6 +9,7 @@ import { PDFNote } from "../../type/PDFNote";
 import { searchSentence, tapWord$ } from "../../state/search";
 import { debounceTime, Subject } from "rxjs";
 import { host } from "../../utils/host";
+import { LeftOutlined, RightOutlined } from "@ant-design/icons";
 
 const MENU_ID = "MENU_ID";
 
@@ -21,13 +22,13 @@ export type MarkMap = {
 const toutchWord$ = new Subject<string>();
 toutchWord$.pipe(debounceTime(1)).subscribe({
   next(value) {
-      tapWord$.next(value);
+    tapWord$.next(value);
   },
 });
 
 type InnerPdfProps = {
   filePath: string;
-  onGetNumPages: (pages: number) => void; 
+  onGetNumPages: (pages: number) => void;
   onGetPageLoaded: () => void;
   pageRef: any;
   pageNumber: number;
@@ -39,55 +40,55 @@ type InnerPdfProps = {
   scale: number;
 }
 
-function _InnerPdf({filePath, onGetNumPages, onGetPageLoaded, pageRef, pageNumber, fitWidth, pageWidth, fitHeight, pageHeight, onGetWordIndexMap, scale }: InnerPdfProps) {
+function _InnerPdf({ filePath, onGetNumPages, onGetPageLoaded, pageRef, pageNumber, fitWidth, pageWidth, fitHeight, pageHeight, onGetWordIndexMap, scale }: InnerPdfProps) {
   return (
     <Document
-    file={filePath}
-    onLoadSuccess={({ numPages }: any) => {
-      onGetNumPages(numPages);
-    }}
-    onLoadError={(e: any) => {
-      console.log("onLoadError:", e);
-    }}
-  >
-    <Page
-      onLoadSuccess={() => {
-        onGetPageLoaded();
+      file={filePath}
+      onLoadSuccess={({ numPages }: any) => {
+        onGetNumPages(numPages);
       }}
-      inputRef={pageRef}
-      pageNumber={pageNumber}
-      width={fitWidth ? pageWidth : undefined}
-      height={fitHeight ? pageHeight : undefined}
-      onRenderTextLayerSuccess={() => {
-        if (pageRef.current) {
-          const words = (pageRef.current as HTMLDivElement).querySelectorAll('.pdf_page_word');
-          console.log(words);
-          // Array.from(words).forEach((wordEl) => {
-          //   wordEl.addEventListener('touchstart', (e) => {
-          //     console.log('touchstart:', e);
-          //   });
-          //   wordEl.addEventListener('touchmove', (e) => {
-          //     console.log('touchmove:', e);
-          //   });
-          //   wordEl.addEventListener('touchend', (e) => {
-          //     console.log('touchend:', e);
-          //   });
-          // })
-          onGetWordIndexMap(Array.from(words).reduce((acc, curr, index) => {
-            (acc as any).set(curr, index);
-            return acc;
-          }, new Map()) as any);
-        }
+      onLoadError={(e: any) => {
+        console.log("onLoadError:", e);
       }}
-      scale={scale}
-    />
-  </Document>
+    >
+      <Page
+        onLoadSuccess={() => {
+          onGetPageLoaded();
+        }}
+        inputRef={pageRef}
+        pageNumber={pageNumber}
+        width={fitWidth ? pageWidth : undefined}
+        height={fitHeight ? pageHeight : undefined}
+        onRenderTextLayerSuccess={() => {
+          if (pageRef.current) {
+            const words = (pageRef.current as HTMLDivElement).querySelectorAll('.pdf_page_word');
+            console.log(words);
+            // Array.from(words).forEach((wordEl) => {
+            //   wordEl.addEventListener('touchstart', (e) => {
+            //     console.log('touchstart:', e);
+            //   });
+            //   wordEl.addEventListener('touchmove', (e) => {
+            //     console.log('touchmove:', e);
+            //   });
+            //   wordEl.addEventListener('touchend', (e) => {
+            //     console.log('touchend:', e);
+            //   });
+            // })
+            onGetWordIndexMap(Array.from(words).reduce((acc, curr, index) => {
+              (acc as any).set(curr, index);
+              return acc;
+            }, new Map()) as any);
+          }
+        }}
+        scale={scale}
+      />
+    </Document>
   )
 }
 
 const InnerPdf = memo(_InnerPdf);
 
-function Component({filePath: file, note}:{ filePath: string; note?: PDFNote }) {
+function Component({ filePath: file, note }: { filePath: string; note?: PDFNote }) {
   const [outSideNoteOpened, setOutSideNoteOpened] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -115,6 +116,7 @@ function Component({filePath: file, note}:{ filePath: string; note?: PDFNote }) 
   const [createdNote, setCreatedNote] = useState<PDFNote | null>(null);
 
   const [scale, setScale] = useState(1);
+  const [pureMode, setPureMode] = useState(false);
 
   const { show, hideAll } = useContextMenu({
     id: MENU_ID,
@@ -183,7 +185,7 @@ function Component({filePath: file, note}:{ filePath: string; note?: PDFNote }) 
       setTimeout(() => {
         const pdfPage = pageRef.current;
         if (pdfPage) {
-          const {start, end} = note;
+          const { start, end } = note;
           highlight(start, end);
           setOutSideNoteOpened(true);
         }
@@ -199,7 +201,7 @@ function Component({filePath: file, note}:{ filePath: string; note?: PDFNote }) 
   }, []);
   const _onGetWordIndexMap = useCallback((map: any) => {
     setWordIndexMap(map);
-  },[]);
+  }, []);
 
 
 
@@ -239,7 +241,7 @@ function Component({filePath: file, note}:{ filePath: string; note?: PDFNote }) 
     // const target = e.target as HTMLDivElement;
     const changedTouch = e.changedTouches[0];
     const target: HTMLDivElement = document.elementFromPoint(changedTouch.clientX, changedTouch.clientY) as any;
-    
+
     console.log('checkSelectEnd')
     setIsSelecting(false);
     const targetIsWordEl = target.classList.contains('pdf_page_word');
@@ -249,14 +251,14 @@ function Component({filePath: file, note}:{ filePath: string; note?: PDFNote }) 
       let words: string[] = [];
       wordIndexMap.forEach((index, ele) => {
         if (index >= start && index <= end) {
-          words.push(ele.textContent || ''); 
+          words.push(ele.textContent || '');
         }
       });
       let sentence = words.join(' ');
-      let pdfNote:PDFNote = {
+      let pdfNote: PDFNote = {
         file,
         page: pageNumber,
-        start, 
+        start,
         end,
         content: sentence,
       };
@@ -294,7 +296,7 @@ function Component({filePath: file, note}:{ filePath: string; note?: PDFNote }) 
     } else if (targetIsWordEl && createdNote !== null) { // 点击文字，且当前已有标注
       let wordIndex = wordIndexMap.get(target);
       const { start, end } = createdNote;
-      if ( wordIndex !== undefined && wordIndex >= start && wordIndex <= end) {
+      if (wordIndex !== undefined && wordIndex >= start && wordIndex <= end) {
         setContextMenu([
           [
             {
@@ -331,7 +333,7 @@ function Component({filePath: file, note}:{ filePath: string; note?: PDFNote }) 
         }
       }
     } else if (createdNote !== null && target === pointerDownTarget) { // 空白处点击， 取消标注
-      const {start, end} = createdNote;
+      const { start, end } = createdNote;
       cancelHighlight(start, end);
       setCreatedNote(null);
     } else if (targetIsWordEl) {
@@ -343,7 +345,22 @@ function Component({filePath: file, note}:{ filePath: string; note?: PDFNote }) 
     setSelectEndIndex(-1);
     setSelectStartIndex(-1);
   }
-  console.log(`render pdf view pageHeight: ${pageHeight}, pageWidth: ${pageWidth} , `)
+  console.log(`render pdf view pageHeight: ${pageHeight}, pageWidth: ${pageWidth} , `);
+
+  const PageNav = ({direction}: {direction: 'left' | 'right'}) => {
+    return <div style={{display: 'flex', zIndex: 2, flexDirection: direction === 'left' ? 'column' : 'column-reverse', position: 'absolute', top: 'calc(50% - 25px)', ...(direction === 'left' ? {left: 0} : {right: 0})}}>
+      <Button style={{width: '50px', height: '50px', borderRadius: '25px', margin: '12px 0'}} onClick={() => {
+        setPageNumber(pageNumber - 1);
+      }}>
+        <LeftOutlined />
+      </Button>
+      <Button   style={{width: '50px', height: '50px', borderRadius: '25px'}}     onClick={() => {
+        setPageNumber(pageNumber + 1);
+      }}>
+        <RightOutlined />
+      </Button>
+    </div>
+  }
   return (
     <div
       style={{
@@ -355,9 +372,9 @@ function Component({filePath: file, note}:{ filePath: string; note?: PDFNote }) 
       }}
       ref={containerRef}
     >
-      <link rel="stylesheet" href="/assets/AnnotationLayer.css" /> 
-      <link rel="stylesheet" href="/assets/TextLayer.css" /> 
-      <div className="pdfHeader" style={{display: 'flex', justifyContent: 'center', alignItems: 'center'}}>
+      <link rel="stylesheet" href="/assets/AnnotationLayer.css" />
+      <link rel="stylesheet" href="/assets/TextLayer.css" />
+      <div className="pdfHeader" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
         <Button
           onClick={() => {
             const container = containerRef.current;
@@ -386,30 +403,40 @@ function Component({filePath: file, note}:{ filePath: string; note?: PDFNote }) 
         >
           适应宽度
         </Button>
-        <Pagination
-            simple
-            current={pageNumber}
-            total={numPages * 10}
-            onChange={(pageNumber: number) => {
-              setPageNumber(pageNumber);
-            }}
-          />
-          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '150px'}}>
+        <div style={{margin: '0 15px'}}>
+          <Input 
+          style={{
+            width: '50px',
+            textAlign: 'right', outline: 'none', border: 'none', display: 'inline', background: 'none', color: 'white'
+          }}
+          onChange={(e) => {
+            setPageNumber(parseInt(e.target.value) || 0);
+          }}
+            value={pageNumber} />
+          / {numPages}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '150px' }}>
           <Button onClick={() => {
-          if (scale <= 0.25) {
-            return;
-          }
-          setScale(scale - 0.25);
-        }}>-</Button>
-        <span style={{width: '50px', overflow: 'hidden', textAlign: 'center'}}>{parseInt(`${scale * 100}`, 10)}%</span>
-        <Button onClick={() => {
-          if (scale >= 3) {
-            return;
-          }
-          setScale(scale + 0.25);
-        }}>+</Button>
-          </div>
+            if (scale <= 0.25) {
+              return;
+            }
+            setScale(scale - 0.25);
+          }}>-</Button>
+          <span style={{ width: '50px', overflow: 'hidden', textAlign: 'center' }}>{parseInt(`${scale * 100}`, 10)}%</span>
+          <Button onClick={() => {
+            if (scale >= 3) {
+              return;
+            }
+            setScale(scale + 0.25);
+          }}>+</Button>
+
+        </div>
+        <div style={{display: 'flex', alignItems: 'center', margin: '0 14px'}}>
+          <span>纯文本模式:</span> <Switch style={{margin: '0 14px'}} checked={pureMode}  checkedChildren="on" unCheckedChildren="off" title="纯文本模式" onChange={(checked) => setPureMode(checked)}/>
+        </div>
       </div>
+      <PageNav direction="left"></PageNav>
+      <PageNav direction="right"></PageNav>
       <div
         style={{
           maxWidth: "100%",
@@ -420,7 +447,7 @@ function Component({filePath: file, note}:{ filePath: string; note?: PDFNote }) 
           top: '50%',
           transform: 'translate(-50%, -50%)'
         }}
-        className="pdf-container"
+        className={["pdf-container", pureMode ? 'pure-text-mode': ''].join(' ')}
       >
         <div
           style={{
@@ -428,6 +455,7 @@ function Component({filePath: file, note}:{ filePath: string; note?: PDFNote }) 
             height: `${placeholderHeight}px`,
             background: "white",
           }}
+          className="canvas-placeholder"
         ></div>
         <div
           style={{
@@ -457,7 +485,7 @@ function Component({filePath: file, note}:{ filePath: string; note?: PDFNote }) 
           //     checkSelect(e);
           //   }
           // }}
-    
+
           // onPointerUp={(e) => {
           //   checkSelectEnd(e);
           //   if (selectLongPressTimer) {
