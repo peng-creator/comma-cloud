@@ -1,4 +1,4 @@
-import { Button, Input, message, Pagination, Switch } from "antd";
+import { Button, Dropdown, Input, message, Modal, Pagination, Space, Switch } from "antd";
 import React, { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Document, Page, pdfjs } from "./react-pdf";
 import styles from "./PDFViewer.module.css";
@@ -9,7 +9,8 @@ import { PDFNote } from "../../type/PDFNote";
 import { searchSentence, tapWord$ } from "../../state/search";
 import { debounceTime, Subject } from "rxjs";
 import { host } from "../../utils/host";
-import { LeftOutlined, RightOutlined } from "@ant-design/icons";
+import { DownOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
+import { HexColorPicker } from "react-colorful";
 
 const MENU_ID = "MENU_ID";
 
@@ -121,6 +122,29 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
   const { show, hideAll } = useContextMenu({
     id: MENU_ID,
   });
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [color, setColor] = useState(localStorage.getItem('pdf-font-color') || "#fff");
+  const [backgroundColor, setBackgroundColor] = useState(localStorage.getItem('pdf-background-color') || "#000");
+  const [colorEditing, setColorEditing] = useState(color);
+  const [backgroundColorEditing, setBackgroundColorEditing] = useState(backgroundColor);
+
+  useEffect(() => {
+    let styleEl = document.querySelector('style#pdf-config');
+    const styleContetn = `
+    .pdf-container.pure-text-mode .canvas-placeholder {
+      background: ${backgroundColor} !important;
+    }
+    .pdf-container.pure-text-mode .pdf_page_word {
+      color: ${color};
+    }
+    `;
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = 'pdf-config';
+      document.head.appendChild(styleEl);
+    }
+    styleEl.innerHTML = styleContetn;
+  }, [color, backgroundColor]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -374,7 +398,11 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
     >
       <link rel="stylesheet" href="/assets/AnnotationLayer.css" />
       <link rel="stylesheet" href="/assets/TextLayer.css" />
-      <div className="pdfHeader" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+      
+
+      <PageNav direction="left"></PageNav>
+      <PageNav direction="right"></PageNav>
+      <Dropdown overlay={      <div className="pdfHeader" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
         <Button
           onClick={() => {
             const container = containerRef.current;
@@ -434,13 +462,19 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
         <div style={{display: 'flex', alignItems: 'center', margin: '0 14px'}}>
           <span>纯文本模式:</span> <Switch style={{margin: '0 14px'}} checked={pureMode}  checkedChildren="on" unCheckedChildren="off" title="纯文本模式" onChange={(checked) => setPureMode(checked)}/>
         </div>
-      </div>
-      <PageNav direction="left"></PageNav>
-      <PageNav direction="right"></PageNav>
+        <div><Button onClick={() => {setIsModalVisible(true)}}>颜色设置</Button></div>
+      </div>}>
+        <a onClick={e => e.preventDefault()}>
+          <Space>
+            Hover me
+            <DownOutlined />
+          </Space>
+        </a>
+      </Dropdown>
       <div
         style={{
           maxWidth: "100%",
-          maxHeight: "calc(100% - 64px)",
+          maxHeight: "100%",
           overflow: isSelecting ? 'hidden' : 'auto',
           position: "absolute",
           left: '50%',
@@ -528,6 +562,25 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
           <InnerPdf scale={scale} filePath={filePath} onGetNumPages={_setNumPages} onGetPageLoaded={_setPageLoaded} pageRef={pageRef} pageNumber={pageNumber} fitWidth={fitWidth} pageWidth={pageWidth} fitHeight={fitHeight} pageHeight={pageHeight} onGetWordIndexMap={_onGetWordIndexMap} />
         </div>
       </div>
+      <Modal title="颜色设置" visible={isModalVisible} onOk={() => {
+        setIsModalVisible(false);
+        localStorage.setItem('pdf-font-color', colorEditing);
+        localStorage.setItem('pdf-background-color', backgroundColorEditing);
+        setColor(colorEditing);
+        setBackgroundColor(backgroundColorEditing);
+      }}
+      okText="save"
+      onCancel={() => {
+        setIsModalVisible(false);
+      }}
+      >
+        <div>文本颜色：</div>
+        <HexColorPicker color={colorEditing} onChange={setColorEditing} />
+        <div>背景颜色：</div>
+        <HexColorPicker color={backgroundColorEditing} onChange={setBackgroundColorEditing} />
+        <div>效果：</div>
+        <div style={{color: colorEditing, backgroundColor: backgroundColorEditing}}>Hello World!</div>
+      </Modal>
     </div>
   );
 }
