@@ -9,8 +9,9 @@ import { PDFNote } from "../../type/PDFNote";
 import { searchSentence, tapWord$ } from "../../state/search";
 import { debounceTime, Subject } from "rxjs";
 import { host } from "../../utils/host";
-import { DownOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
+import { DownOutlined, LeftOutlined, RightOutlined, UnorderedListOutlined } from "@ant-design/icons";
 import { HexColorPicker } from "react-colorful";
+import { complementary, hex2rgbObject } from 'lumino';
 
 const MENU_ID = "MENU_ID";
 
@@ -20,6 +21,7 @@ export type MarkMap = {
   [key: string]: string | undefined;
 };
 
+const pdfScroll$ = new Subject<any>();
 const toutchWord$ = new Subject<string>();
 toutchWord$.pipe(debounceTime(1)).subscribe({
   next(value) {
@@ -127,6 +129,8 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
   const [backgroundColor, setBackgroundColor] = useState(localStorage.getItem('pdf-background-color') || "#000");
   const [colorEditing, setColorEditing] = useState(color);
   const [backgroundColorEditing, setBackgroundColorEditing] = useState(backgroundColor);
+  const [pdfMenuTop, setPdfMenuTop] = useState(0);
+  const [pdfPageNumberBottom, setPdfPageNumberBottom] = useState(14);
 
   useEffect(() => {
     let styleEl = document.querySelector('style#pdf-config');
@@ -147,13 +151,23 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
   }, [color, backgroundColor]);
 
   useEffect(() => {
+    const sp = pdfScroll$.pipe(debounceTime(20)).subscribe({
+      next() {
+        setPdfMenuTop(containerRef.current?.querySelector('.pdf-container')?.scrollTop || 0);
+        setPdfPageNumberBottom(14 - (containerRef.current?.querySelector('.pdf-container')?.scrollTop || 0));
+      }
+    });
+    return () => sp.unsubscribe();
+  }, [])
+
+  useEffect(() => {
     const container = containerRef.current;
     const fitWidth = () => {
       if (container) {
         setFitHeight(false);
         setFitWidth(true);
-        setPageWidth(container.clientWidth - 40);
-        setPageHeight(container.clientHeight - 40);
+        setPageWidth(container.clientWidth);
+        setPageHeight(container.clientHeight);
       }
     };
     fitWidth();
@@ -187,14 +201,15 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
   }, [outSideNoteOpened, note]);
 
   const highlight = useCallback((start: number, end: number) => {
+    const {r, g, b} = complementary(hex2rgbObject(color));
     wordIndexMap.forEach((index, ele) => {
       if (index >= start && index <= end) {
-        ele.style.background = 'rgba(35, 44, 58, 0.2)';
+        ele.style.background = `rgba(${r}, ${g}, ${b}, 0.2)`;
       } else {
         ele.style.background = 'none';
       }
     })
-  }, [wordIndexMap]);
+  }, [wordIndexMap, color]);
 
   const cancelHighlight = useCallback((start: number, end: number) => {
     wordIndexMap.forEach((index, ele) => {
@@ -372,14 +387,32 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
   console.log(`render pdf view pageHeight: ${pageHeight}, pageWidth: ${pageWidth} , `);
 
   const PageNav = ({direction}: {direction: 'left' | 'right'}) => {
-    return <div style={{display: 'flex', zIndex: 2, flexDirection: direction === 'left' ? 'column' : 'column-reverse', position: 'absolute', top: 'calc(50% - 25px)', ...(direction === 'left' ? {left: 0} : {right: 0})}}>
+    return <div style={{display: 'flex', zIndex: 2, flexDirection: direction === 'left' ? 'column' : 'column-reverse', position: 'absolute', top: 'calc(50% - 25px)',[direction]: '14px'}}>
       <Button style={{width: '50px', height: '50px', borderRadius: '25px', margin: '12px 0'}} onClick={() => {
-        setPageNumber(pageNumber - 1);
+        const nextPage = pageNumber - 1;
+        if (nextPage > numPages) {
+          setPageNumber(numPages);
+          return;
+        }
+        if (nextPage < 1) {
+          setPageNumber(1);
+          return;
+        }
+        setPageNumber(nextPage);
       }}>
         <LeftOutlined />
       </Button>
       <Button   style={{width: '50px', height: '50px', borderRadius: '25px'}}     onClick={() => {
-        setPageNumber(pageNumber + 1);
+        const nextPage = pageNumber + 1;
+        if (nextPage > numPages) {
+          setPageNumber(numPages);
+          return;
+        }
+        if (nextPage < 1) {
+          setPageNumber(1);
+          return;
+        }
+        setPageNumber(nextPage);
       }}>
         <RightOutlined />
       </Button>
@@ -402,15 +435,36 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
 
       <PageNav direction="left"></PageNav>
       <PageNav direction="right"></PageNav>
-      <Dropdown overlay={      <div className="pdfHeader" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+      <div
+        style={{
+          maxWidth: "100%",
+          maxHeight: "100%",
+          overflow: isSelecting ? 'hidden' : 'auto',
+          position: "absolute",
+          left: '50%',
+          top: '50%',
+          transform: 'translate(-50%, -50%)'
+        }}
+        className={["pdf-container", pureMode ? 'pure-text-mode': ''].join(' ')}
+        onScroll={() => {
+          pdfScroll$.next('');
+        }}
+      >
+     <div style={{position: 'absolute', top: pdfMenuTop + 'px', right: '14px', zIndex: 1}}>
+      <Dropdown 
+      getPopupContainer={() => {
+        return containerRef.current || document.body;
+      }}
+      trigger={['click']}
+      overlay={      <div className="pdfHeader" style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', background:'#000', color: '#fff' }}>
         <Button
           onClick={() => {
             const container = containerRef.current;
             if (container) {
               setFitHeight(true);
               setFitWidth(false);
-              setPageWidth(container.clientWidth - 40);
-              setPageHeight(container.clientHeight - 40);
+              setPageWidth(container.clientWidth);
+              setPageHeight(container.clientHeight);
               setScale(1);
             }
           }}
@@ -423,27 +477,15 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
             if (container) {
               setFitHeight(false);
               setFitWidth(true);
-              setPageWidth(container.clientWidth - 40);
-              setPageHeight(container.clientHeight - 40);
+              setPageWidth(container.clientWidth);
+              setPageHeight(container.clientHeight);
               setScale(1);
             }
           }}
         >
           适应宽度
         </Button>
-        <div style={{margin: '0 15px'}}>
-          <Input 
-          style={{
-            width: '50px',
-            textAlign: 'right', outline: 'none', border: 'none', display: 'inline', background: 'none', color: 'white'
-          }}
-          onChange={(e) => {
-            setPageNumber(parseInt(e.target.value) || 0);
-          }}
-            value={pageNumber} />
-          / {numPages}
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '150px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Button onClick={() => {
             if (scale <= 0.25) {
               return;
@@ -459,30 +501,42 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
           }}>+</Button>
 
         </div>
-        <div style={{display: 'flex', alignItems: 'center', margin: '0 14px'}}>
+        <div style={{ padding: '14px 0', display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '0 14px'}}>
           <span>纯文本模式:</span> <Switch style={{margin: '0 14px'}} checked={pureMode}  checkedChildren="on" unCheckedChildren="off" title="纯文本模式" onChange={(checked) => setPureMode(checked)}/>
         </div>
-        <div><Button onClick={() => {setIsModalVisible(true)}}>颜色设置</Button></div>
+        {pureMode && <Button onClick={() => {setIsModalVisible(true)}}>颜色设置</Button>}
       </div>}>
-        <a onClick={e => e.preventDefault()}>
-          <Space>
-            Hover me
-            <DownOutlined />
-          </Space>
+        <a onClick={e => e.preventDefault()} style={{color: pureMode ? color : '#000', fontSize: '25px'}}>
+          <UnorderedListOutlined />
         </a>
       </Dropdown>
-      <div
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'center', position: 'absolute', bottom: pdfPageNumberBottom + 'px', right: '14px', color: pureMode ? color : '#000', zIndex: 2, fontSize: '18px'}}>
+        <Input 
         style={{
-          maxWidth: "100%",
-          maxHeight: "100%",
-          overflow: isSelecting ? 'hidden' : 'auto',
-          position: "absolute",
-          left: '50%',
-          top: '50%',
-          transform: 'translate(-50%, -50%)'
+          width: '50px',
+          textAlign: 'right', outline: 'none', border: 'none', display: 'inline-block', background: 'none', color: pureMode ? color : '#000',
+          fontSize: '18px',
+          position: 'relative',
+          top: '-4px',
+          right: '-4px',
         }}
-        className={["pdf-container", pureMode ? 'pure-text-mode': ''].join(' ')}
-      >
+        onChange={(e) => {
+          const nextPage = parseInt(e.target.value) || 0;
+          if (nextPage > numPages) {
+            setPageNumber(numPages);
+            return;
+          }
+          if (nextPage < 1) {
+            setPageNumber(1);
+            return;
+          }
+          setPageNumber(nextPage);
+        }}
+          value={pageNumber} />
+        / {numPages}
+      </div>
+
         <div
           style={{
             width: `${placeholderWidth}px`,
