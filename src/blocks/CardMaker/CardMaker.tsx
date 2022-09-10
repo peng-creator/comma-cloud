@@ -24,6 +24,7 @@ import {
 import { IonList, IonItem, IonLabel } from "@ionic/react";
 import { Virtuoso } from "react-virtuoso";
 import { playSubtitle$ } from "../../state/video";
+import { playYoutubeSubtitle$ } from "../../state/youtube";
 
 const MY_NAMESPACE = "2a671a64-40d5-491e-99b0-da01ff1f3341";
 export const CARD_COLLECTION_NAMESPACE = "3b671a64-40d5-491e-99b0-da01ff1f3341";
@@ -329,7 +330,7 @@ const Component = () => {
                       </>
                     )}
                   {currentCard.front.subtitles.map((subtitle, index) => {
-                    const { subtitles, start, end, file } = subtitle;
+                    const { subtitles, start, end, file, title } = subtitle;
                     const deleteSubtitle = () => {
                       const updatedSubtitles =
                         currentCard.front.subtitles.filter(
@@ -365,10 +366,18 @@ const Component = () => {
                         <div style={{ margin: "0 14px" }}>-{index}.</div>
                         <LazyInput
                           onWordClick={() => {
+                            if (file && file.startsWith('https')) {
+                              playYoutubeSubtitle$.next(subtitle);
+                              return;
+                            }
                             playSubtitle$.next(subtitle);
                           }}
                           value={file}
-                          displayValueTo={(file) => {
+                          displayValueTo={(file: string) => {
+                            if (file.startsWith('https')) {
+                              console.log('display link to :', title);
+                              return title || file;
+                            }
                             const li = file.split("/");
                             return li[li.length - 1];
                           }}

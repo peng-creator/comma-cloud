@@ -1,4 +1,4 @@
-import { Button, Drawer, Input, message } from "antd";
+import { Button, Drawer, Input, message, Modal } from "antd";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ZoneDefinition } from "../../type/Zone";
 import { ResourceLoader } from "../ResourceLoader/ResourceLoader";
@@ -38,6 +38,8 @@ import { StatusBar, Style } from '@capacitor/status-bar';
 import { playSubtitle$ } from "../../state/video";
 import { openNote$ } from "../CardMaker/CardMaker";
 import { openStandaloneSubtitle$ } from "../../state/subtitle";
+import { searchYoutubeVide } from "../../service/http/Youtube";
+import { playYoutubeSubtitle$ } from "../../state/youtube";
 
 // iOS only
 window.addEventListener('statusTap', function () {
@@ -104,6 +106,8 @@ export const App = () => {
   const [inputSearchValue, setInputSearchValue] = useState("");
   const searchBoxRef: any = useRef<any>();
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [showYoutubeModal, setShowYoutubeModal] = useState(false);
+  const [youtubeResult, setYoutubeResult] = useState<any>(null);
 
   useEffect(() => {
     const sp = search$.subscribe({
@@ -169,7 +173,6 @@ export const App = () => {
             id: zones.length + 1,
             title: arr[arr.length - 1],
             type: "video",
-            fullScreen: false,
             data: {
               filePath: file,
               subtitle: sub,
@@ -179,6 +182,29 @@ export const App = () => {
         addToTopRight();
       },
     });
+    const sp0 = playYoutubeSubtitle$.subscribe({
+      next(sub) {
+        const {file, title} = sub;
+        if (!file) {
+          message.warn('没有文件路径！');
+          return;
+        }
+        setZones([
+          ...zones,
+          {
+            id: zones.length + 1,
+            title: title || file,
+            type: 'youtube',
+            data: {
+              videoId: file.split('=')[1],
+              subtitle: sub,
+              title,
+            },
+          },
+        ]);
+        addToTopRight();
+      },
+    })
     const sp1 = openStandaloneSubtitle$.subscribe({
       next({
         title,
@@ -198,7 +224,6 @@ export const App = () => {
             id: zones.length + 1,
             title,
             type: 'subtitle',
-            fullScreen: false,
             data: {
               filePath,
               player,
@@ -216,6 +241,7 @@ export const App = () => {
       },
     });
     return () => {
+      sp0.unsubscribe();
       sp.unsubscribe();
       sp1.unsubscribe();
     };
@@ -236,7 +262,6 @@ export const App = () => {
             id: zones.length + 1,
             title: arr[arr.length - 1],
             type: "pdf",
-            fullScreen: false,
             data: {
               filePath: file,
               note,
@@ -251,6 +276,22 @@ export const App = () => {
     };
   }, [zones, addToTopRight]);
 
+  const openYoutubeWindow = (videoId: string, title: string) => {
+    setZones([
+      ...zones,
+      {
+        id: zones.length + 1,
+        title,
+        type: "youtube",
+        data: {
+          title,
+          videoId
+        },
+      },
+    ]);
+    addToTopRight();
+    setShowAddZone(false);
+  }
   return (
     <div style={{ height: "100%", position: "relative" }}>
       <TapCache />
@@ -268,7 +309,6 @@ export const App = () => {
               id: zones.length + 1,
               title: arr[arr.length - 1],
               type: "pdf",
-              fullScreen: false,
               data: {
                 filePath,
               },
@@ -286,7 +326,6 @@ export const App = () => {
               id: zones.length + 1,
               title: arr[arr.length - 1],
               type: "video",
-              fullScreen: false,
               data: {
                 filePath,
               },
@@ -323,7 +362,6 @@ export const App = () => {
                   id: zones.length + 1,
                   title: "词典",
                   type: "dict",
-                  fullScreen: false,
                   data: {
                     name: "有道",
                     template: "https://mobile.youdao.com/dict?le=eng&q={}",
@@ -344,7 +382,6 @@ export const App = () => {
                   id: zones.length + 1,
                   title: "卡片编辑器",
                   type: "cardMaker",
-                  fullScreen: false,
                   data: {
                     // name: "有道",
                     // template: "http://mobile.youdao.com/dict?le=eng&q={}",
@@ -451,7 +488,7 @@ export const App = () => {
           />
         </div>
         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingRight: '14px' }}>
-          <div style={{width: '320px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', }}>
+          <div style={{width: '420px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', }}>
             <Button
             style={{ color: 'white', padding: '0 30px', height: '50px', fontSize: '25px' }}
             type="text"
@@ -481,6 +518,66 @@ export const App = () => {
               }}
               placeholder="搜索"
             />
+          <Button style={{marginLeft: '10px'}} onClick={() => {
+            const hide = message.loading('玩命搜索中..', 0);
+            searchYoutubeVide(inputSearchValue).then((data) => {
+              setYoutubeResult(data);
+              setShowYoutubeModal(true);
+            }).finally(() => {
+              hide()
+            });
+              
+          }}>youtube</Button>
+          {youtubeResult !== null &&           <Modal 
+          width="95%"
+          title="搜索结果" 
+          visible={showYoutubeModal && youtubeResult} 
+          onOk={() => {
+            setShowYoutubeModal(false);
+          }} 
+          onCancel={() => {
+            setShowYoutubeModal(false);
+          }}>
+            <div>
+              {youtubeResult.items.map((item: any) => {
+                const {id, snippet} = item;
+                const {videoId} = id;
+                const {title, thumbnails, description} = snippet;
+                return <div key={id.videoId} onClick={() => {
+                  openYoutubeWindow(videoId, title);
+                }}
+                  style={{
+                    display: 'flex',
+                    margin: '14px 0',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <div style={{minWidth: '200px', maxWidth: '200px', minHeight: '200px', background: `no-repeat center url("${thumbnails.medium.url}")`}}></div>
+                  <div style={{flexGrow: 1, marginLeft: '14px'}}>
+                    <div style={{fontSize: '18px'}}>{title}</div>
+                    <div style={{fontSize: '15px', color: '#bbb'}}>{description}</div>
+                  </div>
+                </div>
+              })}
+            </div>
+            {youtubeResult.prevPageToken && <Button onClick={() => {
+              const hide = message.loading('玩命搜索中..', 0);
+              searchYoutubeVide(inputSearchValue, youtubeResult.prevPageToken).then((data) => {
+                setYoutubeResult(data);
+              }).finally(() => {
+                hide()
+              });
+            }}>上一页</Button>}
+            {youtubeResult.nextPageToken && <Button onClick={() => {
+              const hide = message.loading('玩命搜索中..', 0);
+              searchYoutubeVide(inputSearchValue, youtubeResult.nextPageToken).then((data) => {
+                setYoutubeResult(data);
+              }).finally(() => {
+                hide()
+              });
+            }}>下一页</Button>}
+          </Modal>}
+
           </div>
           <div>
             <Button type="text" style={{color: 'white', fontSize: '20px'}} onClick={() => {

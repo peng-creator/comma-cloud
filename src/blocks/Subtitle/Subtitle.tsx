@@ -394,6 +394,7 @@ export const SubtitleComponent = ({
                         const subtitle = subtitles[index];
                         addSubtitle$.next({
                           file: filePath,
+                          title,
                           ...subtitle,
                         });
                       }}

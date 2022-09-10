@@ -8,6 +8,7 @@ import styles from './Zone.module.css';
 import { dragWindowEnd$, dragWindowStart$, isDraggingSplitBar$ } from "../../state/zone";
 import { PDFViewer } from '../PDFViewer/PDFViewer';
 import { SubtitleComponent } from '../Subtitle/Subtitle';
+import { Youtube } from '../Youtube/Youtube';
 
 const ZoneMapping: { [key in ZoneType]: (...args: any[]) => JSX.Element | null} = {
   dict: Dict,
@@ -15,6 +16,7 @@ const ZoneMapping: { [key in ZoneType]: (...args: any[]) => JSX.Element | null} 
   video: Video,
   cardMaker: CardMaker,
   subtitle: SubtitleComponent,
+  youtube: Youtube,
 };
 
 export const Zone = ({difinition} : {difinition: ZoneDefinition}) => {
