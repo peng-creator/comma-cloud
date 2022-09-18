@@ -23,7 +23,7 @@ import { openStandaloneSubtitle$ } from "../../state/subtitle";
 export const SubtitleComponent = ({
   title,
   filePath,
-  player,
+  seekTo,
   subtitles$,
   loopingSubtitle$,
   scrollToIndex$,
@@ -36,7 +36,7 @@ export const SubtitleComponent = ({
   style?: CSSProperties;
   filePath: string;
   subtitles$: BehaviorSubject<Subtitle[]>;
-  player: ReactPlayer;
+  seekTo: (time: number) => void;
   loopingSubtitle$: BehaviorSubject<Subtitle | null>;
   scrollToIndex$: BehaviorSubject<number>;
   onSubtitlesChange: (nextSubtitles: Subtitle[]) => void;
@@ -45,9 +45,11 @@ export const SubtitleComponent = ({
   onPlayingChange: (playing: boolean) => void;
 }) => {
   const [subtitles] = useBehavior(subtitles$, []);
-  const [loopingSubtitle] = useBehavior(loopingSubtitle$, null);
+  const [_loopingSubtitle] = useBehavior(loopingSubtitle$, null);
   const [scrollToIndex] = useBehavior(scrollToIndex$, -1);
-
+  const loopingSubtitle = _loopingSubtitle !== null ? subtitles.find(({start, end, subtitles}) => {
+    return start === _loopingSubtitle.start && end === _loopingSubtitle.end && subtitles[0] === _loopingSubtitle.subtitles[0];
+  }) : null;
   const virtuoso = useRef<VirtuosoHandle | null>(null);
   const scrollTo = useCallback(
     (index: number, behavior: "smooth" | "auto" = "smooth") => {
@@ -110,7 +112,7 @@ export const SubtitleComponent = ({
                   onSubtitlesChange(nextSubtitles);
                   onLoopingSubtitleChange(null);
                   onScrollToIndexChange(0);
-                  player?.seekTo(nextSubtitles[0].start / 1000, "seconds");
+                  seekTo(nextSubtitles[0].start / 1000);
                 }}
               >
                 逗号结尾的合并
@@ -145,7 +147,7 @@ export const SubtitleComponent = ({
                   onSubtitlesChange(nextSubtitles);
                   onLoopingSubtitleChange(null);
                   onScrollToIndexChange(0);
-                  player?.seekTo(nextSubtitles[0].start / 1000, "seconds");
+                  seekTo(nextSubtitles[0].start / 1000);
                 }}
               >
                 非标点结尾的合并
@@ -158,28 +160,26 @@ export const SubtitleComponent = ({
             字幕合并
           </Button>
         </Dropdown>
-        {player !== null && (
-          <Button
-            type="text"
-            style={{ color: "#fff" }}
-            onClick={() => {
-              openStandaloneSubtitle$.next({
-                title,
-                filePath,
-                player,
-                subtitles$,
-                loopingSubtitle$,
-                scrollToIndex$,
-                onSubtitlesChange,
-                onScrollToIndexChange,
-                onLoopingSubtitleChange,
-                onPlayingChange,
-              });
-            }}
-          >
-            在新窗口中打开字幕
-          </Button>
-        )}
+        <Button
+          type="text"
+          style={{ color: "#fff" }}
+          onClick={() => {
+            openStandaloneSubtitle$.next({
+              title,
+              filePath,
+              seekTo,
+              subtitles$,
+              loopingSubtitle$,
+              scrollToIndex$,
+              onSubtitlesChange,
+              onScrollToIndexChange,
+              onLoopingSubtitleChange,
+              onPlayingChange,
+            });
+          }}
+        >
+          在新窗口中打开字幕
+        </Button>
       </div>
       <Virtuoso
         style={{ height: "calc(100% - 32px)" }}
@@ -193,9 +193,7 @@ export const SubtitleComponent = ({
             nextScrollToIndex: number
           ) => {
             const subtitleToPlay = nextSubtitles[nextScrollToIndex];
-            if (player !== null) {
-              player.seekTo(subtitleToPlay.start / 1000, "seconds");
-            }
+            seekTo(subtitleToPlay.start / 1000);
             if (
               loopingSubtitle !== null &&
               scrollToIndex === nextScrollToIndex
@@ -294,11 +292,9 @@ export const SubtitleComponent = ({
                         return;
                       }
                       onPlayingChange(true);
-                      if (player !== null) {
-                        player.seekTo((item.start + 10) / 1000, "seconds");
-                        onLoopingSubtitleChange(item);
-                        onScrollToIndexChange(index);
-                      }
+                      seekTo((item.start + 10) / 1000);
+                      onLoopingSubtitleChange(item);
+                      onScrollToIndexChange(index);
                     }}
                     style={{
                       color: "white",

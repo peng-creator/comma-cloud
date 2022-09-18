@@ -40,6 +40,8 @@ import { openNote$ } from "../CardMaker/CardMaker";
 import { openStandaloneSubtitle$ } from "../../state/subtitle";
 import { searchYoutubeVide } from "../../service/http/Youtube";
 import { playYoutubeSubtitle$ } from "../../state/youtube";
+import { v4 as uuidv4 } from "uuid";
+import { closeZone, registerZones } from "../../service/http/Zone";
 
 // iOS only
 window.addEventListener('statusTap', function () {
@@ -74,8 +76,6 @@ export const THEMES = {
   'Blueprint Dark': classNames('mosaic-blueprint-theme', 'bp3-dark'),
 };
 
-let windowCount = 0;
-
 const MosaicWindowNumber: any = MosaicWindow;
 const MosaicNumber: any = Mosaic;
 
@@ -102,7 +102,7 @@ export const App = () => {
   const [showResourceLoader, setShowResourceLoader] = useState(false);
   const [contextMenuList] = useBehavior(contextMenu$, []);
 
-  const [currentNode, setCurrentNode] = useState<MosaicNode<number> | null>(null);
+  const [currentNode, setCurrentNode] = useState<MosaicNode<string> | null>(null);
   const [inputSearchValue, setInputSearchValue] = useState("");
   const searchBoxRef: any = useRef<any>();
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -120,43 +120,55 @@ export const App = () => {
     };
   }, []);
 
-  const addToTopRight = useCallback(() => {
-    let nextNode: MosaicNode<number> | null = null;
-    if (currentNode) {
-      const path = getPathToCorner(currentNode, Corner.TOP_RIGHT);
-      const parent = getNodeAtPath(currentNode, dropRight(path)) as MosaicParent<number>;
-      const destination = getNodeAtPath(currentNode, path) as MosaicNode<number>;
-      // const direction: MosaicDirection = parent ? getOtherDirection(parent.direction) : 'row';
-      const direction: MosaicDirection = 'row';
-
-      let first: MosaicNode<number>;
-      let second: MosaicNode<number>;
-      if (direction === 'row') {
-        first = destination;
-        second = ++windowCount;
-      } else {
-        first = ++windowCount;
-        second = destination;
-      }
-
-      nextNode = updateTree(currentNode, [
-        {
-          path,
-          spec: {
-            $set: {
-              direction,
-              first,
-              second,
-            },
-          },
-        },
-      ]);
-    } else {
-      nextNode = ++windowCount;
+  const resigerZonesLocal = useCallback(() => {
+    if (zones.length > 0) {
+      registerZones(zones.map((zone) => {
+        return {
+          ...zone, registerTimeStamp: Date.now().valueOf(),
+        };
+      }));
     }
+  }, [zones]);
 
+  useEffect(() => {
+    resigerZonesLocal();
+    const timer = setInterval(() => {
+      resigerZonesLocal();
+    }, 20000);
+    return () => clearInterval(timer);
+  }, [zones, resigerZonesLocal]);
+
+  const addWindow = useCallback((nodeToAdd: MosaicNode<string>) => {
+    let nextNode: MosaicNode<string> | null = null;
+    if (currentNode) {
+      nextNode = {
+        direction: 'column',
+        first: nodeToAdd,
+        second: currentNode,
+      }
+    } else {
+      nextNode = nodeToAdd;
+    }
     setCurrentNode(nextNode);
   }, [currentNode]);
+
+  const addZone = useCallback((zone: Omit<ZoneDefinition, "id" | "registerTimeStamp">) => {
+    const id = uuidv4();
+    const nextZones = [
+      ...zones,
+      {
+        ...zone,
+        id,
+      }
+    ];
+    setZones(nextZones);
+    addWindow(id);
+  }, [zones, addWindow]);
+
+  const removeZone = useCallback((zone: ZoneDefinition) => {
+    setZones(zones.filter(z => z.id !== zone.id));
+    closeZone(zone.id);
+  }, [zones]);
 
   useEffect(() => {
     const sp = playSubtitle$.subscribe({
@@ -167,19 +179,14 @@ export const App = () => {
           return;
         }
         const arr = file.split("/");
-        setZones([
-          ...zones,
-          {
-            id: zones.length + 1,
-            title: arr[arr.length - 1],
-            type: "video",
-            data: {
-              filePath: file,
-              subtitle: sub,
-            },
+        addZone({
+          title: arr[arr.length - 1],
+          type: "video",
+          data: {
+            filePath: file,
+            subtitle: sub,
           },
-        ]);
-        addToTopRight();
+        });
       },
     });
     const sp0 = playYoutubeSubtitle$.subscribe({
@@ -189,27 +196,22 @@ export const App = () => {
           message.warn('没有文件路径！');
           return;
         }
-        setZones([
-          ...zones,
-          {
-            id: zones.length + 1,
-            title: title || file,
-            type: 'youtube',
-            data: {
-              videoId: file.split('=')[1],
-              subtitle: sub,
-              title,
-            },
+        addZone({
+          title: title || file,
+          type: 'youtube',
+          data: {
+            videoId: file.split('=')[1],
+            subtitle: sub,
+            title,
           },
-        ]);
-        addToTopRight();
+        });
       },
     })
     const sp1 = openStandaloneSubtitle$.subscribe({
       next({
         title,
         filePath,
-        player,
+        seekTo,
         subtitles$,
         loopingSubtitle$,
         scrollToIndex$,
@@ -218,26 +220,21 @@ export const App = () => {
         onLoopingSubtitleChange,
         onPlayingChange,
       }) {
-        setZones([
-          ...zones,
-          {
-            id: zones.length + 1,
-            title,
-            type: 'subtitle',
-            data: {
-              filePath,
-              player,
-              subtitles$,
-              loopingSubtitle$,
-              scrollToIndex$,
-              onSubtitlesChange,
-              onScrollToIndexChange,
-              onLoopingSubtitleChange,
-              onPlayingChange,
-            },
+        addZone({
+          title,
+          type: 'subtitle',
+          data: {
+            filePath,
+            seekTo,
+            subtitles$,
+            loopingSubtitle$,
+            scrollToIndex$,
+            onSubtitlesChange,
+            onScrollToIndexChange,
+            onLoopingSubtitleChange,
+            onPlayingChange,
           },
-        ]);
-        addToTopRight();
+        },);
       },
     });
     return () => {
@@ -245,7 +242,7 @@ export const App = () => {
       sp.unsubscribe();
       sp1.unsubscribe();
     };
-  }, [zones, addToTopRight]);
+  }, [zones, addZone]);
 
   useEffect(() => {
     const sp = openNote$.subscribe({
@@ -256,40 +253,30 @@ export const App = () => {
           return;
         }
         const arr = file.split("/");
-        setZones([
-          ...zones,
-          {
-            id: zones.length + 1,
-            title: arr[arr.length - 1],
-            type: "pdf",
-            data: {
-              filePath: file,
-              note,
-            },
+        addZone({
+          title: arr[arr.length - 1],
+          type: "pdf",
+          data: {
+            filePath: file,
+            note,
           },
-        ]);
-        addToTopRight();
+        },);
       },
     })
     return () => {
       sp.unsubscribe();
     };
-  }, [zones, addToTopRight]);
+  }, [zones, addZone]);
 
   const openYoutubeWindow = (videoId: string, title: string) => {
-    setZones([
-      ...zones,
-      {
-        id: zones.length + 1,
+    addZone({
+      title,
+      type: "youtube",
+      data: {
         title,
-        type: "youtube",
-        data: {
-          title,
-          videoId
-        },
+        videoId
       },
-    ]);
-    addToTopRight();
+    },);
     setShowAddZone(false);
   }
   return (
@@ -303,35 +290,25 @@ export const App = () => {
         onOpenPDF={(filePath) => {
           console.log("onOpenPDF:", filePath);
           const arr = filePath.split("/");
-          setZones([
-            ...zones,
-            {
-              id: zones.length + 1,
-              title: arr[arr.length - 1],
-              type: "pdf",
-              data: {
-                filePath,
-              },
+          addZone({
+            title: arr[arr.length - 1],
+            type: "pdf",
+            data: {
+              filePath,
             },
-          ]);
-          addToTopRight();
+          },);
           setShowResourceLoader(false);
         }}
         onOpenVideo={(filePath) => {
           console.log("onOpenVideo:", filePath);
           const arr = filePath.split("/");
-          setZones([
-            ...zones,
-            {
-              id: zones.length + 1,
-              title: arr[arr.length - 1],
-              type: "video",
-              data: {
-                filePath,
-              },
+          addZone({
+            title: arr[arr.length - 1],
+            type: "video",
+            data: {
+              filePath,
             },
-          ]);
-          addToTopRight();
+          },);
           setShowResourceLoader(false);
         }}
       ></ResourceLoader>
@@ -356,19 +333,14 @@ export const App = () => {
         >
           <Button
             onClick={() => {
-              setZones([
-                ...zones,
-                {
-                  id: zones.length + 1,
-                  title: "词典",
-                  type: "dict",
-                  data: {
-                    name: "有道",
-                    template: "https://mobile.youdao.com/dict?le=eng&q={}",
-                  },
+              addZone({
+                title: "词典",
+                type: "dict",
+                data: {
+                  name: "有道",
+                  template: "https://mobile.youdao.com/dict?le=eng&q={}",
                 },
-              ]);
-              addToTopRight();
+              },);
               setShowAddZone(false);
             }}
           >
@@ -376,23 +348,33 @@ export const App = () => {
           </Button>
           <Button
             onClick={() => {
-              setZones([
-                ...zones,
-                {
-                  id: zones.length + 1,
-                  title: "卡片编辑器",
-                  type: "cardMaker",
-                  data: {
-                    // name: "有道",
-                    // template: "http://mobile.youdao.com/dict?le=eng&q={}",
-                  },
+              addZone({
+                title: "卡片编辑器",
+                type: "cardMaker",
+                data: {
+                  // name: "有道",
+                  // template: "http://mobile.youdao.com/dict?le=eng&q={}",
                 },
-              ]);
-              addToTopRight();
+              },);
               setShowAddZone(false);
             }}
           >
             卡片编辑器
+          </Button>
+          <Button
+            onClick={() => {
+              addZone({
+                title: "遥控器",
+                type: "remoteController",
+                data: {
+                  // name: "有道",
+                  // template: "http://mobile.youdao.com/dict?le=eng&q={}",
+                },
+              },);
+              setShowAddZone(false);
+            }}
+          >
+            遥控器
           </Button>
           <Button
             onClick={() => {
@@ -439,8 +421,14 @@ export const App = () => {
             resize={{
               minimumPaneSizePercentage: 0
             }}
-            renderTile={(count: number, path: any) => (
-              <MosaicWindowNumber
+            renderTile={(id: string, path: any) => {
+              console.log('renderTile, path:', path);
+              console.log('renderTile, id:', id);
+              const zone = zones.find(zone => zone.id === id);
+              if (!zone) {
+                return null;
+              }
+              return (<MosaicWindowNumber
                 onDragStart={() => {
                   dragWindowStart$.next(true);
                 }}
@@ -470,19 +458,21 @@ export const App = () => {
                       });
                     }
                   }}><Icon style={{position: 'relative', top: '-3px'}} icon="fullscreen" size={12} color="#5f6b7c" /></Button>,
-                  <RemoveButton />,
+                  <RemoveButton onClick={() => {
+                    removeZone(zone);
+                  }}/>,
                 ])}
-                title={zones[count - 1].title}
-                createNode={() => {
-                  return ++windowCount;
-                }}
+                title={zone.title || '没有标题'}
+                // createNode={() => {
+                //   return ++windowCount;
+                // }}
                 path={path}
               >
-                <Zone difinition={zones[count - 1]}></Zone>
+                <Zone difinition={zone}></Zone>
               </MosaicWindowNumber>
-            )}
+            )}}
             value={currentNode}
-            onChange={(node: MosaicNode<number> | null) => {
+            onChange={(node: MosaicNode<string> | null) => {
               setCurrentNode(node);
             }}
           />

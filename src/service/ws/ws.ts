@@ -1,5 +1,7 @@
 import { map, Observable, Subject, Subscription } from "rxjs";
+import { remoteControlInput$, remoteControlOutput$ } from "../../state/remoteContol";
 import { tapSearch$, textSearch$ } from "../../state/search";
+import { zoneHighlightInput$, zoneHighlightOutput$ } from "../../state/zone";
 import { host } from "../../utils/host";
 
 const newConnection = ({
@@ -105,12 +107,10 @@ const openWebsocketStreaming = (address: string, inputStreams: InputStreams, out
 
 openWebsocketStreaming(`ws://${host}:8080`, {
   search: tapSearch$,
+  zoneHighlight: zoneHighlightInput$,
+  remoteControl: remoteControlInput$,
 }, {
   search: textSearch$,
-}); // sync search
-
-
-
-// export const search = (text: string) => {
-//   ws.send(text);
-// };
+  zoneHighlight: zoneHighlightOutput$,
+  remoteControl: remoteControlOutput$,
+});

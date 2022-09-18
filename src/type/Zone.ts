@@ -1,8 +1,9 @@
-export type ZoneType = 'dict' | 'pdf' | 'video' | 'cardMaker' | 'subtitle' | 'youtube';
+export type ZoneType = 'dict' | 'pdf' | 'video' | 'cardMaker' | 'subtitle' | 'youtube' | 'remoteController';
 
 export type ZoneDefinition = {
-  id: string | number;
+  id: string;
   type: ZoneType;
   data: any;
   title: string;
+  registerTimeStamp?: number;
 };

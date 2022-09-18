@@ -300,7 +300,7 @@ export const Youtube = ({
           title={title}
           filePath={url}
           subtitles$={subtitles$}
-          player={player}
+          seekTo={(time) => player.seekTo(time, 'seconds')}
           loopingSubtitle$={loopingSubtitle$}
           scrollToIndex$={scrollToIndex$}
           onSubtitlesChange={(nextSubtitles: Subtitle[]) => {

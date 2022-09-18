@@ -25,23 +25,27 @@ import { Resizable } from "re-resizable";
 import { host } from "../../utils/host";
 import { BehaviorSubject } from "rxjs";
 import { SubtitleComponent } from "../Subtitle/Subtitle";
+import { remoteControlInput$, remoteControlOutput$ } from "../../state/remoteContol";
 
 export const Video = ({
   filePath,
   subtitle,
   style,
   title,
+  zoneId,
 }: {
   style: CSSProperties;
   filePath: string;
   subtitle?: Subtitle;
+  zoneId: string;
   title: string;
 }) => {
   const [subtitles, _setSubtitles] = useState([] as Subtitle[]);
   const ref = useRef<ReactPlayer | null>(null);
+  const player = ref.current;
   const [playing, setPlaying] = useState(false);
   const [subtitleLooping, setSubtitleLooping] = useState<Subtitle | null>(null);
-  const [scrollToIndex, _setScrollToIndex] = useState(0);
+  const [scrollToIndex, setScrollToIndex] = useState(0);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const [videoFocus, setVideoFocus] = useState(false);
   const [ready, setReady] = useState(false);
@@ -66,11 +70,66 @@ export const Video = ({
   }, [scrollToIndex, scrollToIndex$]);
 
 
-  const setSubtitles = (subtitles: Subtitle[]) => {
+  const setSubtitles = useCallback((subtitles: Subtitle[]) => {
     _setSubtitles(subtitles);
     saveSubtitlesOfVideo(filePath, subtitles);
-  };
+  }, [filePath]);
 
+  useEffect(() => {
+    const feedData = () => {
+      remoteControlInput$.next({
+        toZoneId: zoneId,
+        action: 'setSubtitles',
+        data: {
+          subtitles,
+        }
+      });
+      remoteControlInput$.next({
+        toZoneId: zoneId,
+        action: 'scrollToIndex',
+        data: {
+          nextScrollToIndex: scrollToIndex,
+        }
+      });
+      remoteControlInput$.next({
+        toZoneId: zoneId,
+        action: 'loopingSubtitle',
+        data: {
+          subtitle: subtitleLooping,
+        }
+      });
+    }
+    feedData();
+    const sp = remoteControlOutput$.subscribe({
+      next({toZoneId, action, data,}) {
+        if (toZoneId !== zoneId) {
+          return;
+        }
+        if (action === 'seekTime') {
+          player?.seekTo(data.time, 'seconds');
+        }
+        if (action === 'setSubtitles') {
+          setSubtitles(data.nextSubtitles);
+        }
+        if (action === 'scrollToIndex') {
+          setScrollToIndex(data.nextScrollToIndex);
+        }
+        if (action === 'loopingSubtitle') {
+          setSubtitleLooping(data.subtitle);
+        }
+        if (action === 'playingChange') {
+          setPlaying(data.playing)
+        }
+        if (action === 'startControl') {
+          console.log('new remote controller, start to feed data');
+          // feed the data to remote contoller
+          feedData();
+        }
+      },
+
+    });
+    return () => sp.unsubscribe();
+  }, [player, scrollToIndex, setSubtitles, subtitleLooping, subtitles, zoneId]);
 
   useEffect(() => {
     if (outSideSubtitlePlayed) {
@@ -94,7 +153,7 @@ export const Video = ({
         const nextScrollToIndex = subtitles.findIndex(
           (s) => s === subtileFound
         );
-        _setScrollToIndex(nextScrollToIndex);
+        setScrollToIndex(nextScrollToIndex);
         setSubtitleLooping(subtileFound);
         setPlaying(true);
         setOutSideSubtitlePlayed(true);
@@ -150,7 +209,7 @@ export const Video = ({
           console.log("subtileFound:", subtileFound);
           currentSubtitle = subtileFound;
 
-          _setScrollToIndex(subtitles.findIndex((s) => s === currentSubtitle));
+          setScrollToIndex(subtitles.findIndex((s) => s === currentSubtitle));
         }
         return;
       }
@@ -163,14 +222,14 @@ export const Video = ({
         console.log("currentSubtitle:", currentSubtitle);
         console.log("set currentSubtitle to null");
         currentSubtitle = null;
-        _setScrollToIndex(-1);
+        setScrollToIndex(-1);
       }
     }, 50);
     return () => {
       console.log("clear timer");
       clearInterval(timer);
     };
-  }, [playing, ref, subtitles, subtitleLooping, _setScrollToIndex]);
+  }, [playing, ref, subtitles, subtitleLooping, setScrollToIndex]);
 
   useEffect(() => {
     getSubtitlesOfVideo(filePath).then((subtitles) => {
@@ -179,7 +238,6 @@ export const Video = ({
     });
   }, [filePath]);
 
-  const player = ref.current;
   const url = `http://${host}:8080/resource` + filePath;
   console.log("play url:", url);
 
@@ -311,14 +369,14 @@ export const Video = ({
           title={title}
           filePath={filePath}
           subtitles$={subtitles$}
-          player={player}
+          seekTo={(time) => player.seekTo(time, 'seconds')}
           loopingSubtitle$={loopingSubtitle$}
           scrollToIndex$={scrollToIndex$}
           onSubtitlesChange={(nextSubtitles: Subtitle[]) => {
             setSubtitles(nextSubtitles);
           }}
           onScrollToIndexChange={(nextScrollToIndex: number) => {
-            _setScrollToIndex(nextScrollToIndex);
+            setScrollToIndex(nextScrollToIndex);
           }}
           onLoopingSubtitleChange={(subtitle: Subtitle | null) => {
             setSubtitleLooping(subtitle);
