@@ -6,6 +6,7 @@ export const openStandaloneSubtitle$ = new Subject<{
   filePath: string; 
   subtitles$: BehaviorSubject<Subtitle[]>;
   seekTo: (time: number) => void;
+  isPlaying$: BehaviorSubject<boolean>;
   loopingSubtitle$: BehaviorSubject<Subtitle | null>;
   scrollToIndex$: BehaviorSubject<number>;
   onSubtitlesChange: (nextSubtitles: Subtitle[]) => void;

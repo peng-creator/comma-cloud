@@ -55,6 +55,9 @@ export const Video = ({
   const [loopingSubtitle$] = useState(
     new BehaviorSubject<Subtitle | null>(null)
   );
+  const [isPlaying$] = useState(
+    new BehaviorSubject<boolean>(playing)
+  );
   const [scrollToIndex$] = useState(new BehaviorSubject<number>(0));
 
   useEffect(() => {
@@ -64,6 +67,10 @@ export const Video = ({
   useEffect(() => {
     loopingSubtitle$.next(subtitleLooping);
   }, [subtitleLooping, loopingSubtitle$]);
+
+  useEffect(() => {
+    isPlaying$.next(playing);
+  }, [isPlaying$, playing]);
 
   useEffect(() => {
     scrollToIndex$.next(scrollToIndex);
@@ -98,6 +105,13 @@ export const Video = ({
           subtitle: subtitleLooping,
         }
       });
+      remoteControlInput$.next({
+        toZoneId: zoneId,
+        action: 'playingChange',
+        data: {
+          playing
+        }
+      });
     }
     feedData();
     const sp = remoteControlOutput$.subscribe({
@@ -129,7 +143,7 @@ export const Video = ({
 
     });
     return () => sp.unsubscribe();
-  }, [player, scrollToIndex, setSubtitles, subtitleLooping, subtitles, zoneId]);
+  }, [player, playing, scrollToIndex, setSubtitles, subtitleLooping, subtitles, zoneId]);
 
   useEffect(() => {
     if (outSideSubtitlePlayed) {
@@ -222,14 +236,13 @@ export const Video = ({
         console.log("currentSubtitle:", currentSubtitle);
         console.log("set currentSubtitle to null");
         currentSubtitle = null;
-        setScrollToIndex(-1);
       }
     }, 50);
     return () => {
       console.log("clear timer");
       clearInterval(timer);
     };
-  }, [playing, ref, subtitles, subtitleLooping, setScrollToIndex]);
+  }, [playing, ref, subtitles, subtitleLooping]);
 
   useEffect(() => {
     getSubtitlesOfVideo(filePath).then((subtitles) => {
@@ -369,6 +382,7 @@ export const Video = ({
           title={title}
           filePath={filePath}
           subtitles$={subtitles$}
+          isPlaying$={isPlaying$}
           seekTo={(time) => player.seekTo(time, 'seconds')}
           loopingSubtitle$={loopingSubtitle$}
           scrollToIndex$={scrollToIndex$}

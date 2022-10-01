@@ -43,11 +43,18 @@ export const Youtube = ({
   const [loopingSubtitle$] = useState(
     new BehaviorSubject<Subtitle | null>(null)
   );
+  const [isPlaying$] = useState(
+    new BehaviorSubject<boolean>(playing)
+  );
   const [scrollToIndex$] = useState(new BehaviorSubject<number>(0));
 
   useEffect(() => {
     subtitles$.next(subtitles);
   }, [subtitles, subtitles$]);
+
+  useEffect(() => {
+    isPlaying$.next(playing);
+  }, [isPlaying$, playing]);
 
   useEffect(() => {
     loopingSubtitle$.next(subtitleLooping);
@@ -301,6 +308,7 @@ export const Youtube = ({
           filePath={url}
           subtitles$={subtitles$}
           seekTo={(time) => player.seekTo(time, 'seconds')}
+          isPlaying$={isPlaying$}
           loopingSubtitle$={loopingSubtitle$}
           scrollToIndex$={scrollToIndex$}
           onSubtitlesChange={(nextSubtitles: Subtitle[]) => {

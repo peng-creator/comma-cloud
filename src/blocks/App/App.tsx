@@ -105,7 +105,7 @@ export const App = () => {
   const [currentNode, setCurrentNode] = useState<MosaicNode<string> | null>(null);
   const [inputSearchValue, setInputSearchValue] = useState("");
   const searchBoxRef: any = useRef<any>();
-  const [isFullScreen, setIsFullScreen] = useState(false);
+  const [fullScreenZoneId, setFullScreenZoneId] = useState('');
   const [showYoutubeModal, setShowYoutubeModal] = useState(false);
   const [youtubeResult, setYoutubeResult] = useState<any>(null);
 
@@ -214,6 +214,7 @@ export const App = () => {
         seekTo,
         subtitles$,
         loopingSubtitle$,
+        isPlaying$,
         scrollToIndex$,
         onSubtitlesChange,
         onScrollToIndexChange,
@@ -229,6 +230,7 @@ export const App = () => {
             subtitles$,
             loopingSubtitle$,
             scrollToIndex$,
+            isPlaying$,
             onSubtitlesChange,
             onScrollToIndexChange,
             onLoopingSubtitleChange,
@@ -436,26 +438,11 @@ export const App = () => {
                   dragWindowEnd$.next(true);
                 }}
                 toolbarControls={React.Children.toArray([
-                  <Button type="text" onClick={(e) => {
-                    if (isFullScreen) {
-                      document.exitFullscreen();
-                      setIsFullScreen(false);
+                  <Button type="text" onClick={() => {
+                    if (id === fullScreenZoneId) {
+                      setFullScreenZoneId('');
                     } else {
-                      const findParentMosaicTile = (target: HTMLElement): HTMLElement => {
-                        const parent = target.parentElement;
-                        if (!parent) {
-                          return target;
-                        }
-                        if (parent.className.includes('mosaic-tile')) {
-                          return target;
-                        }
-                        return findParentMosaicTile(parent);
-                      }
-                      const zoneToBeFullScreen = findParentMosaicTile(e.target as HTMLElement);
-                      console.log('zoneToBeFullScreen:', zoneToBeFullScreen);
-                      zoneToBeFullScreen?.requestFullscreen().then(() => {
-                        setIsFullScreen(true);
-                      });
+                      setFullScreenZoneId(id);
                     }
                   }}><Icon style={{position: 'relative', top: '-3px'}} icon="fullscreen" size={12} color="#5f6b7c" /></Button>,
                   <RemoveButton onClick={() => {
@@ -568,18 +555,6 @@ export const App = () => {
             }}>下一页</Button>}
           </Modal>}
 
-          </div>
-          <div>
-            <Button type="text" style={{color: 'white', fontSize: '20px'}} onClick={() => {
-              if (isFullScreen) {
-                document.exitFullscreen();
-                setIsFullScreen(false);
-              } else {
-                document.body.requestFullscreen().then(() => setIsFullScreen(true));
-              }
-            }} >
-              {isFullScreen ? <ShrinkOutlined /> : <ArrowsAltOutlined />}
-            </Button>
           </div>
 
         </div>

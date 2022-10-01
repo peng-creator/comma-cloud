@@ -28,6 +28,7 @@ export const RemoteController = ({
   const [subtitles$, setSubtitles$] = useState(new BehaviorSubject<Subtitle[]>([]));
   const [loopingSubtitle$, setLoopingSubtitle$] = useState(new BehaviorSubject<Subtitle | null>(null));
   const [scrollToIndex$, setScrollToIndex$] = useState(new BehaviorSubject<number>(-1));
+  const [isPlaying$] = useState(new BehaviorSubject(false));
 
   useEffect(() => {
     if (!zone) {
@@ -46,7 +47,7 @@ export const RemoteController = ({
         }
         if (action === 'setSubtitles') {
           console.log('remote controller got remoteControlOutput, nextSubtitles:', data.subtitles);
-          subtitles$.next(data.subtitles);
+          subtitles$.next(data.subtitles || []);
         }
         if (action === 'scrollToIndex') {
           scrollToIndex$.next(data.nextScrollToIndex);
@@ -55,10 +56,13 @@ export const RemoteController = ({
           console.log('remote controller got remoteControlOutput, loopingSubtitle:', data.subtitle);
           loopingSubtitle$.next(data.subtitle);
         }
+        if (action === 'playingChange') {
+          isPlaying$.next(data.playing);
+        }
       },
     });
     return () => sp.unsubscribe();
-  }, [loopingSubtitle$, scrollToIndex$, subtitles$, zone]);
+  }, [loopingSubtitle$, isPlaying$, scrollToIndex$, subtitles$, zone]);
 
   return <div
   style={{
@@ -126,6 +130,7 @@ export const RemoteController = ({
           }
         });
       }}
+      isPlaying$={isPlaying$}
       loopingSubtitle$={loopingSubtitle$}
       scrollToIndex$={scrollToIndex$}
       onSubtitlesChange={(nextSubtitles: Subtitle[]) => {
@@ -165,6 +170,7 @@ export const RemoteController = ({
             playing,
           }
         });
+        isPlaying$.next(playing);
       }}
       ></SubtitleComponent>
     }
