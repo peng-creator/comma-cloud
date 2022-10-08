@@ -1,12 +1,12 @@
 import React, { memo, useEffect, useRef, useState } from "react";
-import { Button, Input, message, Popconfirm } from "antd";
+import { Button, Input, message, Popconfirm, Tooltip } from "antd";
 import {
   DeleteOutlined,
   PlayCircleOutlined,
   SaveOutlined,
 } from "@ant-design/icons";
 import { v5 as uuidv5 } from "uuid";
-import { BehaviorSubject, Subject } from "rxjs";
+import { BehaviorSubject, debounceTime, Subject, throttleTime } from "rxjs";
 import { PDFNote } from "../../type/PDFNote";
 import { FlashCard } from "../../type/FlashCard";
 import { Subtitle } from "../../type/Subtitle";
@@ -24,7 +24,7 @@ import {
 import { IonList, IonItem, IonLabel } from "@ionic/react";
 import { Virtuoso } from "react-virtuoso";
 import { playSubtitle$ } from "../../state/video";
-import { playYoutubeSubtitle$ } from "../../state/youtube";
+import { checkClipboard } from "../../utils/clipboard";
 
 const MY_NAMESPACE = "2a671a64-40d5-491e-99b0-da01ff1f3341";
 export const CARD_COLLECTION_NAMESPACE = "3b671a64-40d5-491e-99b0-da01ff1f3341";
@@ -48,10 +48,11 @@ const newFlashCard = (keyword: string): FlashCard => {
 
 export const pdfNote$ = new Subject<PDFNote>();
 export const openNote$ = new Subject<PDFNote>();
-export const saveCard$ = new Subject<FlashCard>();
 
 export const addSubtitle$ = new Subject<Subtitle>();
 export const openCardReviewAction$ = new Subject();
+
+const throttledAddSubtitle$ = addSubtitle$.pipe(throttleTime(3000));
 
 const Component = () => {
   const [flashCards, setFlashCards] = useState<FlashCard[]>([]); // 卡片集，一个卡片集存储关键词相同的卡片。
@@ -62,6 +63,20 @@ const Component = () => {
   const [searchResultList, setSearchResultList] = useState<SearchResult[]>([]);
   const [searchFocus, setSearchFocus] = useState(false);
   const searchRef = useRef<any>(null);
+  const [copiedText, setCopiedText] = useState('');
+  const [saveCard$] = useState(new BehaviorSubject<FlashCard | null>(null));
+
+  useEffect(() => {
+    const sp = saveCard$.pipe(debounceTime(1000)).subscribe({
+      next(card) {
+        if (card === null) {
+          return;
+        }
+        saveCard(card);
+      }
+    });
+    return () => sp.unsubscribe();
+  }, [saveCard$]);
 
   useEffect(() => {
     const sp = search$.subscribe({
@@ -82,7 +97,7 @@ const Component = () => {
   }, [searchRef]);
 
   useEffect(() => {
-    const sp = addSubtitle$.subscribe({
+    const sp = throttledAddSubtitle$.subscribe({
       next(subtitle: Subtitle) {
         if (currentCard === null) {
           message.warn("没有打开的卡片");
@@ -366,18 +381,10 @@ const Component = () => {
                         <div style={{ margin: "0 14px" }}>-{index}.</div>
                         <LazyInput
                           onWordClick={() => {
-                            if (file && file.startsWith('https')) {
-                              playYoutubeSubtitle$.next(subtitle);
-                              return;
-                            }
                             playSubtitle$.next(subtitle);
                           }}
                           value={file}
                           displayValueTo={(file: string) => {
-                            if (file.startsWith('https')) {
-                              console.log('display link to :', title);
-                              return title || file;
-                            }
                             const li = file.split("/");
                             return li[li.length - 1];
                           }}
@@ -481,17 +488,27 @@ const Component = () => {
                 }}
               >
                 <div>解释：</div>
+                {copiedText.trim() && <div style={{margin: '14px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center'}}>
+                    <span style={{marginRight: '14px'}}>{copiedText}</span><Button type="ghost" style={{color: '#fff'}} onClick={() => {
+                      currentCard.back += `\n${copiedText}`;
+                      currentCard.clean = false;
+                      setFlashCards([...flashCards]);
+                      saveCard$.next(currentCard);
+                    }}>填入</Button>
+                </div>
+                }
                 <Input.TextArea
                   value={currentCard.back}
                   onChange={(e) => {
                     currentCard.back = e.target.value;
                     currentCard.clean = false;
                     setFlashCards([...flashCards]);
+                    saveCard$.next(currentCard);
                   }}
                   onKeyDown={(e) => {
                     e.stopPropagation();
                   }}
-                  placeholder="此处记录您对摘录的理解"
+                  placeholder="此处记录您的理解"
                   style={{
                     flexGrow: 1,
                     resize: "none",
@@ -499,8 +516,14 @@ const Component = () => {
                     color: "white",
                     outline: "none",
                   }}
+                  onFocus={async () => {
+                    const copiedText = await checkClipboard();
+                    setCopiedText(copiedText);
+                  }}
                   onBlur={() => {
-                    saveCard(currentCard);
+                    setTimeout(() => {
+                      setCopiedText('');
+                    }, 500);
                   }}
                 />
               </div>

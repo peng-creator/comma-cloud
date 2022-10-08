@@ -460,24 +460,24 @@ body {
  }
 
 .mosaic-tile {
-  margin: 5px;
+  margin: 10px;
 }
 
 .mosaic-split.-row {
   margin-left: -15px;
-  width: 30px;
+  width: 35px;
   z-index: 5;
 }
 
 .mosaic-split.-column {
   margin-top: -15px;
-  height: 30px;
+  height: 35px;
   z-index: 5;
 }
 
 .mosaic-split-line {
-  margin-top: 5px;
-  margin-left: 2px;
+  /* margin-top: 5px;
+  margin-left: 2px; */
   box-shadow: none !important;
 }
 

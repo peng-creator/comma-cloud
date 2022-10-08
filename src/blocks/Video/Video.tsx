@@ -26,6 +26,8 @@ import { host } from "../../utils/host";
 import { BehaviorSubject } from "rxjs";
 import { SubtitleComponent } from "../Subtitle/Subtitle";
 import { remoteControlInput$, remoteControlOutput$ } from "../../state/remoteContol";
+import { saveRecord } from "../../service/http/Records";
+import { playSubtitleRecord$ } from "../../state/video";
 
 export const Video = ({
   filePath,
@@ -59,6 +61,23 @@ export const Video = ({
     new BehaviorSubject<boolean>(playing)
   );
   const [scrollToIndex$] = useState(new BehaviorSubject<number>(0));
+  const [startPublishingData, setStartPublishingData] = useState(false);
+
+  useEffect(() => {
+    if (!subtitles || subtitles.length === 0 || !subtitles[scrollToIndex]) {
+      return;
+    }
+    saveRecord({
+      file: filePath,
+      progress: subtitles[scrollToIndex],
+      type: 'video',
+    });
+    playSubtitleRecord$.next({
+      ...subtitles[scrollToIndex],
+      file: filePath,
+      zoneId,
+    });
+  }, [scrollToIndex, filePath, subtitles, zoneId]);
 
   useEffect(() => {
     subtitles$.next(subtitles);
@@ -78,42 +97,81 @@ export const Video = ({
 
 
   const setSubtitles = useCallback((subtitles: Subtitle[]) => {
-    _setSubtitles(subtitles);
-    saveSubtitlesOfVideo(filePath, subtitles);
+    if (subtitles && subtitles.length > 0) {
+      _setSubtitles(subtitles);
+      saveSubtitlesOfVideo(filePath, subtitles);
+    }
   }, [filePath]);
 
+  const publishSubtitles = useCallback(() => {
+    remoteControlInput$.next({
+      toZoneId: zoneId,
+      action: 'setSubtitles',
+      data: {
+        subtitles,
+      }
+    });
+  }, [zoneId, subtitles]);
+
   useEffect(() => {
-    const feedData = () => {
-      remoteControlInput$.next({
-        toZoneId: zoneId,
-        action: 'setSubtitles',
-        data: {
-          subtitles,
-        }
-      });
-      remoteControlInput$.next({
-        toZoneId: zoneId,
-        action: 'scrollToIndex',
-        data: {
-          nextScrollToIndex: scrollToIndex,
-        }
-      });
-      remoteControlInput$.next({
-        toZoneId: zoneId,
-        action: 'loopingSubtitle',
-        data: {
-          subtitle: subtitleLooping,
-        }
-      });
-      remoteControlInput$.next({
-        toZoneId: zoneId,
-        action: 'playingChange',
-        data: {
-          playing
-        }
-      });
+    if (!startPublishingData) {
+      return;
     }
-    feedData();
+    publishSubtitles();
+  }, [startPublishingData, publishSubtitles])
+
+  const publishScrollToIndex = useCallback(() => {
+    remoteControlInput$.next({
+      toZoneId: zoneId,
+      action: 'scrollToIndex',
+      data: {
+        nextScrollToIndex: scrollToIndex,
+      }
+    });
+  }, [zoneId, scrollToIndex]);
+
+  useEffect(() => {
+    if (!startPublishingData) {
+      return;
+    }
+    publishScrollToIndex();
+  }, [startPublishingData, publishScrollToIndex])
+
+  const publishSubtitleLooping = useCallback(() => {
+    remoteControlInput$.next({
+      toZoneId: zoneId,
+      action: 'loopingSubtitle',
+      data: {
+        subtitle: subtitleLooping,
+      }
+    });
+  }, [zoneId, subtitleLooping]);
+
+  useEffect(() => {
+    if (!startPublishingData) {
+      return;
+    }
+    publishSubtitleLooping();
+  }, [startPublishingData, publishSubtitleLooping,])
+
+  const publishPlayingChange = useCallback(() => {
+    remoteControlInput$.next({
+      toZoneId: zoneId,
+      action: 'playingChange',
+      data: {
+        playing
+      }
+    }) 
+  }, [zoneId, playing]);
+
+  useEffect(() => {
+    if (!startPublishingData) {
+      return;
+    }
+    publishPlayingChange();
+  }, [startPublishingData, publishPlayingChange])
+
+  useEffect(() => {
     const sp = remoteControlOutput$.subscribe({
       next({toZoneId, action, data,}) {
         if (toZoneId !== zoneId) {
@@ -129,7 +187,14 @@ export const Video = ({
           setScrollToIndex(data.nextScrollToIndex);
         }
         if (action === 'loopingSubtitle') {
-          setSubtitleLooping(data.subtitle);
+          const nextLoopingSubtitle = data.subtitle;
+          if (!nextLoopingSubtitle) {
+            setSubtitleLooping(null);
+            return;
+          }
+          if (subtitleLooping === null || nextLoopingSubtitle.start !== subtitleLooping.start && data.subtitle.end !== subtitleLooping.end) {
+            setSubtitleLooping(nextLoopingSubtitle);
+          }
         }
         if (action === 'playingChange') {
           setPlaying(data.playing)
@@ -137,13 +202,23 @@ export const Video = ({
         if (action === 'startControl') {
           console.log('new remote controller, start to feed data');
           // feed the data to remote contoller
-          feedData();
+          setStartPublishingData(true);
+          publishSubtitles();
+          publishScrollToIndex();
+          publishSubtitleLooping();
+          publishPlayingChange();
         }
       },
 
     });
     return () => sp.unsubscribe();
-  }, [player, playing, scrollToIndex, setSubtitles, subtitleLooping, subtitles, zoneId]);
+  }, [player, 
+      zoneId, 
+      publishSubtitles,
+      publishScrollToIndex,
+      publishSubtitleLooping,
+      publishPlayingChange,
+    ]);
 
   useEffect(() => {
     if (outSideSubtitlePlayed) {
@@ -184,7 +259,8 @@ export const Video = ({
       let timer = setInterval(() => {
         const currentTime = player.getCurrentTime() * 1000;
         console.log("while looping, currentTime: ", currentTime);
-        if (currentTime >= subtitleLooping.end) {
+        if (currentTime >= subtitleLooping.end || currentTime <= subtitleLooping.start - 1000) {
+          console.log('seekTo to loop start:', subtitleLooping.start / 1000);
           player.seekTo(subtitleLooping.start / 1000, "seconds");
         }
       }, 50);
@@ -247,7 +323,7 @@ export const Video = ({
   useEffect(() => {
     getSubtitlesOfVideo(filePath).then((subtitles) => {
       console.log("got subtitles of ", filePath, " ==> ", subtitles);
-      _setSubtitles(subtitles);
+      _setSubtitles(subtitles || []);
     });
   }, [filePath]);
 
@@ -379,6 +455,7 @@ export const Video = ({
       </Resizable>
       {player !== null && (
         <SubtitleComponent
+          fromZoneId={zoneId}
           title={title}
           filePath={filePath}
           subtitles$={subtitles$}

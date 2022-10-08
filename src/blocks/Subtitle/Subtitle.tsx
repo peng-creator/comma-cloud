@@ -12,6 +12,7 @@ import {
   RightOutlined,
   LeftOutlined,
   PauseCircleOutlined,
+  FontSizeOutlined,
 } from "@ant-design/icons";
 import { LazyInput } from "../../compontent/LazyInput/LazyInput";
 import { millisecondsToTime } from "../../utils/time";
@@ -21,7 +22,7 @@ import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 import { addSubtitle$ } from "../CardMaker/CardMaker";
 import { BehaviorSubject } from "rxjs";
 import { useBehavior } from "../../state";
-import { openStandaloneSubtitle$ } from "../../state/subtitle";
+import { addSubtitleInput$, fetchStandaloneProps$, openStandaloneSubtitle$, standaloneSubtitleProps$, subtitleReadyToFeedStandaloneProps$ } from "../../state/subtitle";
 
 export const SubtitleComponent = ({
   title,
@@ -35,7 +36,9 @@ export const SubtitleComponent = ({
   onScrollToIndexChange,
   onLoopingSubtitleChange,
   onPlayingChange,
+  fromZoneId,
 }: {
+  fromZoneId?: string;
   title: string;
   style?: CSSProperties;
   filePath: string;
@@ -49,10 +52,12 @@ export const SubtitleComponent = ({
   onLoopingSubtitleChange: (subtitle: Subtitle | null) => void;
   onPlayingChange: (playing: boolean) => void;
 }) => {
-  const [subtitles] = useBehavior(subtitles$, []);
+  console.log('entering SubtitleComponent, title:', title);
+  const [_subtitles] = useBehavior(subtitles$, []);
   const [_loopingSubtitle] = useBehavior(loopingSubtitle$, null);
   const [isPlaying] = useBehavior(isPlaying$, false);
   const [scrollToIndex] = useBehavior(scrollToIndex$, -1);
+  const subtitles = _subtitles || [];
   const loopingSubtitle = _loopingSubtitle !== null ? subtitles.find(({start, end, subtitles}) => {
     return start === _loopingSubtitle.start && end === _loopingSubtitle.end && subtitles[0] === _loopingSubtitle.subtitles[0];
   }) : null;
@@ -75,6 +80,50 @@ export const SubtitleComponent = ({
   }, [virtuoso, scrollToIndex, scrollTo]);
 
   const [singleMode, setSingleMode] = useState(true);
+  const [subtitleFontSize, setSubtitleFontSize] = useState(18);
+
+  useEffect(() => {
+    if (!fromZoneId) {
+      return;
+    }
+    const sp = fetchStandaloneProps$.subscribe({
+      next({fromZoneId: _fromZoneId}) {
+        console.log('receive fetchStandaloneProps');
+        if (fromZoneId === fromZoneId) {
+          console.log('sending standaloneSubtitleProps');
+          standaloneSubtitleProps$.next({
+            fromZoneId,
+            title,
+            filePath,
+            seekTo,
+            subtitles$,
+            loopingSubtitle$,
+            isPlaying$,
+            scrollToIndex$,
+            onSubtitlesChange,
+            onScrollToIndexChange,
+            onLoopingSubtitleChange,
+            onPlayingChange,
+          })
+        }
+      }
+    });
+    subtitleReadyToFeedStandaloneProps$.next(fromZoneId);
+    return () => {
+      sp.unsubscribe();
+    }
+  }, [fromZoneId,
+    title,
+    filePath,
+    seekTo,
+    subtitles$,
+    loopingSubtitle$,
+    isPlaying$,
+    scrollToIndex$,
+    onSubtitlesChange,
+    onScrollToIndexChange,
+    onLoopingSubtitleChange,
+    onPlayingChange,]);
   
   const renderListItem = (index: number) => {
     const item = subtitles[index];
@@ -121,10 +170,40 @@ export const SubtitleComponent = ({
       onScrollToIndexChange(nextScrollToIndex);
       playFromStart(nextSubtitles, nextScrollToIndex);
     };
-    const ajustFrom = (index: number, time: number) => {
+    const adjustFrom = (index: number, time: number) => {
       const nextSubtitles = subtitles.map((s: any, i: number) => {
         if (i >= index) {
           return { ...s, start: s.start + time, end: s.end + time };
+        }
+        return s;
+      });
+      onSubtitlesChange(nextSubtitles);
+      playFromStart(nextSubtitles, index);
+    };
+    /**
+     * 从指定下标起，调节start时间
+     * @param index 字幕下标
+     * @param time 要调节的时间
+     */
+    const adjustStartFrom = (index: number, time: number) => {
+      const nextSubtitles = subtitles.map((s: any, i: number) => {
+        if (i >= index) {
+          return { ...s, start: s.start + time, };
+        }
+        return s;
+      });
+      onSubtitlesChange(nextSubtitles);
+      playFromStart(nextSubtitles, index);
+    };
+    /**
+     * 从指定下标起，调节end时间
+     * @param index 字幕下标
+     * @param time 要调节的时间
+     */
+    const adjustEndFrom = (index: number, time: number) => {
+      const nextSubtitles = subtitles.map((s: any, i: number) => {
+        if (i >= index) {
+          return { ...s, end: s.end + time };
         }
         return s;
       });
@@ -279,11 +358,13 @@ export const SubtitleComponent = ({
               onClick={() => {
                 console.log("add to card");
                 const subtitle = subtitles[index];
-                addSubtitle$.next({
+                const addToCardSubtitle = {
                   file: filePath,
                   title,
                   ...subtitle,
-                });
+                };
+                addSubtitle$.next(addToCardSubtitle);
+                addSubtitleInput$.next(addToCardSubtitle);
               }}
               style={{
                 color: "white",
@@ -296,17 +377,20 @@ export const SubtitleComponent = ({
             </Button>
           </Tooltip>
         </div>
-        <div style={{flex: 1}}>
-            
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "stretch",
-                height: "calc(100% - 80px)",
-                width: "100%",
-              }}
-            >
+        <div style={{flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between'}}>
+          <div
+            style={{
+              maxHeight: "calc(100% - 36px)",
+              height: "calc(100% - 50px)",
+              minHeight: subtitleFontSize * 2 + 'px',
+              overflow: 'hidden',
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <div style={{position: 'absolute', maxHeight: '100%', overflowY: 'auto'}}>
               <div
                 style={{
                   flexGrow: 1,
@@ -316,7 +400,7 @@ export const SubtitleComponent = ({
                   alignItems: "center",
                   textAlign: "center",
                   margin: "20px 14px",
-                  fontSize: "18px",
+                  fontSize: subtitleFontSize + 'px',
                   color: scrollToIndex === index ? "#a976ec" : "white",
                 }}
               >
@@ -328,43 +412,43 @@ export const SubtitleComponent = ({
                       menu={[
                         [
                           {
-                            title: "当前及后续字幕 +1s",
+                            title: "当前及后续字幕 后移1s",
                             onClick: () => {
-                              ajustFrom(index, 1000);
+                              adjustFrom(index, 1000);
                             },
                           },
                           {
-                            title: "当前及后续字幕 -1s",
+                            title: "当前及后续字幕 前移1s",
                             onClick: () => {
-                              ajustFrom(index, -1000);
-                            },
-                          },
-                        ],
-                        [
-                          {
-                            title: "当前及后续字幕 +0.5s",
-                            onClick: () => {
-                              ajustFrom(index, 500);
-                            },
-                          },
-                          {
-                            title: "当前及后续字幕 -0.5s",
-                            onClick: () => {
-                              ajustFrom(index, -500);
+                              adjustFrom(index, -1000);
                             },
                           },
                         ],
                         [
                           {
-                            title: "当前及后续字幕 +0.25s",
+                            title: "当前及后续字幕 后移0.5s",
                             onClick: () => {
-                              ajustFrom(index, +250);
+                              adjustFrom(index, 500);
                             },
                           },
                           {
-                            title: "当前及后续字幕 -0.25s",
+                            title: "当前及后续字幕 前移0.5s",
                             onClick: () => {
-                              ajustFrom(index, -250);
+                              adjustFrom(index, -500);
+                            },
+                          },
+                        ],
+                        [
+                          {
+                            title: "当前及后续字幕 后移0.25s",
+                            onClick: () => {
+                              adjustFrom(index, +250);
+                            },
+                          },
+                          {
+                            title: "当前及后续字幕 前移0.25s",
+                            onClick: () => {
+                              adjustFrom(index, -250);
                             },
                           },
                         ],
@@ -394,121 +478,122 @@ export const SubtitleComponent = ({
                 })}
               </div>
             </div>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                padding: "0 14px 14px",
+          </div>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              padding: "0 14px 14px",
+            }}
+          >
+            <LazyInput
+              menu={[
+                [
+                  {
+                    onClick: () => {
+                      adjustStartFrom(index, 1000);
+                    },
+                    title: "+ 1s",
+                  },
+                  {
+                    onClick: () => {
+                      adjustStartFrom(index, -1000);
+                    },
+                    title: "- 1s",
+                  },
+                ],
+                [
+                  {
+                    onClick: () => {
+                      adjustStartFrom(index, 500);
+                    },
+                    title: "+ 0.5s",
+                  },
+                  {
+                    onClick: () => {
+                      adjustStartFrom(index, -500);
+                    },
+                    title: "- 0.5s",
+                  },
+                ],
+                [
+                  {
+                    onClick: () => {
+                      adjustStartFrom(index, 250);
+                    },
+                    title: "+ 0.25s",
+                  },
+                  {
+                    onClick: () => {
+                      adjustStartFrom(index, -250);
+                    },
+                    title: "- 0.25s",
+                  },
+                ],
+              ]}
+              modalTitle="修改起始时间(单位: ms)"
+              value={start}
+              displayValueTo={(value) => millisecondsToTime(value)}
+              onChange={(value) => {
+                updateStart(parseInt(value, 10) || 0);
               }}
-            >
-              <LazyInput
-                menu={[
-                  [
-                    {
-                      onClick: () => {
-                        updateStart(start + 1000);
-                      },
-                      title: "+ 1s",
+              showMenuOnClick
+            />
+            <LazyInput
+              modalTitle="修改结束时间(单位: ms)"
+              value={end}
+              displayValueTo={(value) => millisecondsToTime(value)}
+              onChange={(value) => {
+                const changeToValue = parseInt(value, 10) || 0;
+                updateEnd(changeToValue);
+              }}
+              menu={[
+                [
+                  {
+                    onClick: () => {
+                      adjustEndFrom(index, 1000);
                     },
-                    {
-                      onClick: () => {
-                        updateStart(start - 1000);
-                      },
-                      title: "- 1s",
+                    title: "+ 1s",
+                  },
+                  {
+                    onClick: () => {
+                      adjustEndFrom(index, -1000);
                     },
-                  ],
-                  [
-                    {
-                      onClick: () => {
-                        updateStart(start + 500);
-                      },
-                      title: "+ 0.5s",
+                    title: "- 1s",
+                  },
+                ],
+                [
+                  {
+                    onClick: () => {
+                      adjustEndFrom(index, 500);
                     },
-                    {
-                      onClick: () => {
-                        updateStart(start - 500);
-                      },
-                      title: "- 0.5s",
+                    title: "+ 0.5s",
+                  },
+                  {
+                    onClick: () => {
+                      adjustEndFrom(index, -500);
                     },
-                  ],
-                  [
-                    {
-                      onClick: () => {
-                        updateStart(start + 250);
-                      },
-                      title: "+ 0.25s",
+                    title: "- 0.5s",
+                  },
+                ],
+                [
+                  {
+                    onClick: () => {
+                      adjustEndFrom(index, 250);
                     },
-                    {
-                      onClick: () => {
-                        updateStart(start - 250);
-                      },
-                      title: "- 0.25s",
+                    title: "+ 0.25s",
+                  },
+                  {
+                    onClick: () => {
+                      adjustEndFrom(index, -250);
                     },
-                  ],
-                ]}
-                modalTitle="修改起始时间(单位: ms)"
-                value={start}
-                displayValueTo={(value) => millisecondsToTime(value)}
-                onChange={(value) => {
-                  updateStart(parseInt(value, 10) || 0);
-                }}
-                showMenuOnClick
-              />
-              <LazyInput
-                modalTitle="修改结束时间(单位: ms)"
-                value={end}
-                displayValueTo={(value) => millisecondsToTime(value)}
-                onChange={(value) => {
-                  const changeToValue = parseInt(value, 10) || 0;
-                  updateEnd(changeToValue);
-                }}
-                menu={[
-                  [
-                    {
-                      onClick: () => {
-                        updateEnd(end + 1000);
-                      },
-                      title: "+ 1s",
-                    },
-                    {
-                      onClick: () => {
-                        updateEnd(end - 1000);
-                      },
-                      title: "- 1s",
-                    },
-                  ],
-                  [
-                    {
-                      onClick: () => {
-                        updateEnd(end + 500);
-                      },
-                      title: "+ 0.5s",
-                    },
-                    {
-                      onClick: () => {
-                        updateEnd(end - 500);
-                      },
-                      title: "- 0.5s",
-                    },
-                  ],
-                  [
-                    {
-                      onClick: () => {
-                        updateEnd(end + 250);
-                      },
-                      title: "+ 0.25s",
-                    },
-                    {
-                      onClick: () => {
-                        updateEnd(end - 250);
-                      },
-                      title: "- 0.25s",
-                    },
-                  ],
-                ]}
-                showMenuOnClick
-              />
-            </div>
+                    title: "- 0.25s",
+                  },
+                ],
+              ]}
+              showMenuOnClick
+            />
+          </div>
         </div>
         <div style={{
           borderBottom: singleMode ? 'none' : "1px solid #c4bfbf",
@@ -517,6 +602,7 @@ export const SubtitleComponent = ({
           alignItems: 'stretch',
           overflow: 'hidden',
           paddingBottom: '14px',
+          height: '56px',
         }}>
           {singleMode && index > 0 && <Button style={{height: '100%', flexGrow: 1, color: '#fff'}} type="ghost" onClick={() => {
             const item = subtitles[index - 1];
@@ -635,6 +721,28 @@ export const SubtitleComponent = ({
               >
                 非标点结尾的合并
               </Menu.Item>
+              <Menu.Item
+                onClick={() => {
+                  const nextSubtitles = subtitles.reduce((acc, curr) => {
+                    let last = acc[acc.length - 1];
+                    let shouldMerge = last && last.end > curr.start; 
+                    if (shouldMerge) {
+                      const merged = mergeSubtitles(last, curr);
+                      last.end = merged.end;
+                      last.subtitles = merged.subtitles;
+                    } else {
+                      acc.push(curr);
+                    }
+                    return acc;
+                  }, [] as Subtitle[]);
+                  onSubtitlesChange(nextSubtitles);
+                  onLoopingSubtitleChange(null);
+                  onScrollToIndexChange(0);
+                  seekTo(nextSubtitles[0].start / 1000);
+                }}
+              >
+                有时间交叉的合并
+              </Menu.Item>
             </Menu>
           }
           placement="bottom"
@@ -643,31 +751,41 @@ export const SubtitleComponent = ({
             字幕合并
           </Button>
         </Dropdown>
-        <Button
+        {fromZoneId && <Button
           type="text"
           style={{ color: "#fff" }}
           onClick={() => {
+            console.log('openStandaloneSubtitle, title:', title);
             openStandaloneSubtitle$.next({
               title,
               filePath,
-              seekTo,
-              subtitles$,
-              loopingSubtitle$,
-              isPlaying$,
-              scrollToIndex$,
-              onSubtitlesChange,
-              onScrollToIndexChange,
-              onLoopingSubtitleChange,
-              onPlayingChange,
+              fromZoneId,
             });
           }}
         >
           在新窗口中打开字幕
-        </Button>
+        </Button>}
         <div style={{display: 'flex', alignItems: 'center'}}>
           <div>单句模式：</div><Switch defaultChecked checked={singleMode} onChange={(value) => setSingleMode(value)}></Switch>
         </div>
-        
+        <Button
+          type="text"
+          style={{ color: "#fff" }}
+          onClick={() => {
+            setSubtitleFontSize(subtitleFontSize - 1);
+          }}
+        >
+          <FontSizeOutlined /> -
+        </Button>
+        <Button
+          type="text"
+          style={{ color: "#fff" }}
+          onClick={() => {
+            setSubtitleFontSize(subtitleFontSize + 1);
+          }}
+        >
+          <FontSizeOutlined /> +
+        </Button>
       </div>
       {!singleMode && <Virtuoso
         style={{ flexGrow: 1, overflowX: 'hidden' }}

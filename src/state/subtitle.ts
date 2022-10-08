@@ -1,7 +1,7 @@
 import { BehaviorSubject, Subject } from 'rxjs';
 import { Subtitle } from '../type/Subtitle';
-
-export const openStandaloneSubtitle$ = new Subject<{
+export type StandaloneSubtitleProps = {
+  fromZoneId: string;
   title: string;
   filePath: string; 
   subtitles$: BehaviorSubject<Subtitle[]>;
@@ -13,4 +13,23 @@ export const openStandaloneSubtitle$ = new Subject<{
   onScrollToIndexChange: (nextScrollToIndex: number) => void;
   onLoopingSubtitleChange: (subtitle: Subtitle | null) => void;
   onPlayingChange: (playing: boolean) => void;
-}>();
+};
+
+export type FetchStandalonePropsAction = {
+  fromZoneId: string;
+}
+
+export type OpenStandaloneAction = {
+  fromZoneId: string;
+  title: string;
+  filePath: string; 
+}
+
+type ZoneId = string;
+
+export const openStandaloneSubtitle$ = new Subject<OpenStandaloneAction>();
+export const fetchStandaloneProps$ = new Subject<FetchStandalonePropsAction>();
+export const standaloneSubtitleProps$ = new Subject<StandaloneSubtitleProps>();
+export const subtitleReadyToFeedStandaloneProps$ = new Subject<ZoneId>();
+
+export const addSubtitleInput$ = new Subject<Subtitle>();

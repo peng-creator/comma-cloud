@@ -1,6 +1,8 @@
-import { map, Observable, Subject, Subscription } from "rxjs";
+import { map, Observable, Subject, Subscription, throttleTime } from "rxjs";
+import { addSubtitle$ } from "../../blocks/CardMaker/CardMaker";
 import { remoteControlInput$, remoteControlOutput$ } from "../../state/remoteContol";
 import { tapSearch$, textSearch$ } from "../../state/search";
+import { addSubtitleInput$ } from "../../state/subtitle";
 import { zoneHighlightInput$, zoneHighlightOutput$ } from "../../state/zone";
 import { host } from "../../utils/host";
 
@@ -16,6 +18,14 @@ const newConnection = ({
 
   let pingTimer: any = null;
   let timeoutTimer: any = null;
+  let closed = false;
+
+  const close = () => {
+    if (!closed) {
+      closed = true;
+      onClose();
+    }
+  }
 
   ws.onopen = function() {
       // Web Socket 已连接上，使用 send() 方法发送数据
@@ -27,7 +37,7 @@ const newConnection = ({
         ws.close();
         clearInterval(pingTimer);
         /// ---connection closed ///
-        onClose();
+        close();
       }, 5000);
     }, 10000);
   };
@@ -45,8 +55,9 @@ const newConnection = ({
   ws.onclose = function() { 
       console.log("websoket 连接已关闭..."); 
       clearInterval(pingTimer);
-      onClose();
+      close();
   };
+  return ws;
 }
 
 type Message = {
@@ -55,11 +66,11 @@ type Message = {
 };
 
 type OutputStreams = {
-  [subject: string]: Subject<string>;
+  [subject: string]: Subject<any>;
 };
 
 type InputStreams = {
-  [subject: string]: Observable<string>;
+  [subject: string]: Observable<any>;
 }
 
 const openWebsocketStreaming = (address: string, inputStreams: InputStreams, outputStreams: OutputStreams) => {
@@ -78,7 +89,11 @@ const openWebsocketStreaming = (address: string, inputStreams: InputStreams, out
           return stream.subscribe({
             next(msg) {
               console.log('send msg:', msg);
-              ws.send(JSON.stringify(msg));
+              try {
+                ws.send(JSON.stringify(msg));
+              } catch(e) {
+                console.log('send msg failed:', e);
+              }
             }
           })
         });
@@ -109,8 +124,10 @@ openWebsocketStreaming(`ws://${host}:8080`, {
   search: tapSearch$,
   zoneHighlight: zoneHighlightInput$,
   remoteControl: remoteControlInput$,
+  addSubtitleToCard: addSubtitleInput$.pipe(throttleTime(1000)),
 }, {
   search: textSearch$,
   zoneHighlight: zoneHighlightOutput$,
   remoteControl: remoteControlOutput$,
+  addSubtitleToCard: addSubtitle$,
 });

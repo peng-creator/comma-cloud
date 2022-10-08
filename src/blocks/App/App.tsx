@@ -35,13 +35,12 @@ import { AppstoreOutlined, SearchOutlined, ArrowsAltOutlined, ShrinkOutlined } f
 import { search$, searchSentence } from "../../state/search";
 import { TapCache } from "../../compontent/TapCache/TapCache";
 import { StatusBar, Style } from '@capacitor/status-bar';
-import { playSubtitle$ } from "../../state/video";
+import { playSubtitle$, playSubtitleRecord$ } from "../../state/video";
 import { openNote$ } from "../CardMaker/CardMaker";
 import { openStandaloneSubtitle$ } from "../../state/subtitle";
-import { searchYoutubeVide } from "../../service/http/Youtube";
-import { playYoutubeSubtitle$ } from "../../state/youtube";
 import { v4 as uuidv4 } from "uuid";
 import { closeZone, registerZones } from "../../service/http/Zone";
+import { getRecords, Record } from "../../service/http/Records";
 
 // iOS only
 window.addEventListener('statusTap', function () {
@@ -106,8 +105,29 @@ export const App = () => {
   const [inputSearchValue, setInputSearchValue] = useState("");
   const searchBoxRef: any = useRef<any>();
   const [fullScreenZoneId, setFullScreenZoneId] = useState('');
-  const [showYoutubeModal, setShowYoutubeModal] = useState(false);
-  const [youtubeResult, setYoutubeResult] = useState<any>(null);
+  const [showRecordModal, setShowRecordModal] = useState(false);
+  const [records, setRecords] = useState([] as Record[])
+
+  const saveWorkZones = (currentNode: MosaicNode<string> | null, zones: ZoneDefinition[]) => {
+    console.log('currentNode: ', currentNode);
+    let serializedWindowTree = '';
+    let serializedZones = '[]';
+    try {
+      serializedWindowTree = JSON.stringify(currentNode);
+    } catch(e) {
+      if (typeof currentNode === 'string') {
+        serializedWindowTree = currentNode;
+      }
+    }
+    try {
+      console.log('JSON.stringify(zones), zoens:', zones);
+      serializedZones = JSON.stringify(zones);
+    } catch(e) {
+      console.log('JSON.stringify(zones) failed:', e);
+    }
+    localStorage.setItem('serializedWindowTree', serializedWindowTree);
+    localStorage.setItem('serializedZones', serializedZones);
+  };
 
   useEffect(() => {
     const sp = search$.subscribe({
@@ -150,6 +170,7 @@ export const App = () => {
       nextNode = nodeToAdd;
     }
     setCurrentNode(nextNode);
+    return nextNode;
   }, [currentNode]);
 
   const addZone = useCallback((zone: Omit<ZoneDefinition, "id" | "registerTimeStamp">) => {
@@ -162,7 +183,8 @@ export const App = () => {
       }
     ];
     setZones(nextZones);
-    addWindow(id);
+    const nextNode = addWindow(id);
+    saveWorkZones(nextNode, nextZones);
   }, [zones, addWindow]);
 
   const removeZone = useCallback((zone: ZoneDefinition) => {
@@ -173,7 +195,7 @@ export const App = () => {
   useEffect(() => {
     const sp = playSubtitle$.subscribe({
       next(sub) {
-        const {file} = sub;
+        const { file } = sub;
         if (!file) {
           message.warn('没有文件路径！');
           return;
@@ -189,58 +211,26 @@ export const App = () => {
         });
       },
     });
-    const sp0 = playYoutubeSubtitle$.subscribe({
-      next(sub) {
-        const {file, title} = sub;
-        if (!file) {
-          message.warn('没有文件路径！');
-          return;
-        }
-        addZone({
-          title: title || file,
-          type: 'youtube',
-          data: {
-            videoId: file.split('=')[1],
-            subtitle: sub,
-            title,
-          },
-        });
-      },
-    })
     const sp1 = openStandaloneSubtitle$.subscribe({
       next({
         title,
         filePath,
-        seekTo,
-        subtitles$,
-        loopingSubtitle$,
-        isPlaying$,
-        scrollToIndex$,
-        onSubtitlesChange,
-        onScrollToIndexChange,
-        onLoopingSubtitleChange,
-        onPlayingChange,
+        fromZoneId,
       }) {
+        console.log('openStandaloneSubtitle: ',         title,
+        filePath,
+        fromZoneId,);
         addZone({
           title,
           type: 'subtitle',
           data: {
             filePath,
-            seekTo,
-            subtitles$,
-            loopingSubtitle$,
-            scrollToIndex$,
-            isPlaying$,
-            onSubtitlesChange,
-            onScrollToIndexChange,
-            onLoopingSubtitleChange,
-            onPlayingChange,
+            fromZoneId,
           },
         },);
       },
     });
     return () => {
-      sp0.unsubscribe();
       sp.unsubscribe();
       sp1.unsubscribe();
     };
@@ -249,7 +239,7 @@ export const App = () => {
   useEffect(() => {
     const sp = openNote$.subscribe({
       next(note) {
-        const {file} = note;
+        const { file } = note;
         if (!file) {
           message.warn('没有文件路径！');
           return;
@@ -270,17 +260,47 @@ export const App = () => {
     };
   }, [zones, addZone]);
 
-  const openYoutubeWindow = (videoId: string, title: string) => {
-    addZone({
-      title,
-      type: "youtube",
-      data: {
-        title,
-        videoId
-      },
-    },);
-    setShowAddZone(false);
-  }
+  useEffect(() => {
+    const recoverWorkZone = () => {
+      let serializedWindowTree = localStorage.getItem('serializedWindowTree') || 'null';
+      let serializedZones = localStorage.getItem('serializedZones') || '[]';
+      console.log('serializedWindowTree:', serializedWindowTree);
+      console.log('serializedZones:', serializedZones);
+      let zones: any = [];
+      let currentNode = null;
+      try {
+        currentNode = JSON.parse(serializedWindowTree);
+      } catch(e) {
+        currentNode = serializedWindowTree;
+      }
+      try {
+        zones = JSON.parse(serializedZones);
+      } catch(e) {
+      }
+      console.log('zones:', zones);
+      console.log('currentNode:', currentNode);
+      setZones(zones);
+      setCurrentNode(currentNode);
+    };
+    recoverWorkZone();
+  }, []);
+
+  useEffect(() => {
+    playSubtitleRecord$.subscribe({
+      next(subtitle) {
+        if (!subtitle) {
+          return;
+        }
+        const zone = zones.find(zone => zone.id === subtitle.zoneId);
+        if (zone) {
+          console.log('add subtitle record to the data of the video zone:', zone);
+          zone.data.subtitle = subtitle;
+        }
+        saveWorkZones(currentNode, zones);
+      }
+    })
+  }, [zones, currentNode]);
+
   return (
     <div style={{ height: "100%", position: "relative" }}>
       <TapCache />
@@ -444,10 +464,10 @@ export const App = () => {
                     } else {
                       setFullScreenZoneId(id);
                     }
-                  }}><Icon style={{position: 'relative', top: '-3px'}} icon="fullscreen" size={12} color="#5f6b7c" /></Button>,
+                  }}><Icon style={{ position: 'relative', top: '-3px' }} icon="fullscreen" size={12} color="#5f6b7c" /></Button>,
                   <RemoveButton onClick={() => {
                     removeZone(zone);
-                  }}/>,
+                  }} />,
                 ])}
                 title={zone.title || '没有标题'}
                 // createNode={() => {
@@ -457,21 +477,23 @@ export const App = () => {
               >
                 <Zone difinition={zone}></Zone>
               </MosaicWindowNumber>
-            )}}
+              )
+            }}
             value={currentNode}
             onChange={(node: MosaicNode<string> | null) => {
               setCurrentNode(node);
+              saveWorkZones(node, zones);
             }}
           />
         </div>
-        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingRight: '14px' }}>
-          <div style={{width: '420px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingRight: '14px' }}>
+          <div style={{ width: '420px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', }}>
             <Button
-            style={{ color: 'white', padding: '0 30px', height: '50px', fontSize: '25px' }}
-            type="text"
-            onClick={() => {
-              setShowAddZone(true);
-            }}><AppstoreOutlined /></Button>
+              style={{ color: 'white', padding: '0 30px', height: '50px', fontSize: '25px' }}
+              type="text"
+              onClick={() => {
+                setShowAddZone(true);
+              }}><AppstoreOutlined /></Button>
             <Input
               prefix={<SearchOutlined />}
               ref={searchBoxRef}
@@ -495,68 +517,49 @@ export const App = () => {
               }}
               placeholder="搜索"
             />
-          <Button style={{marginLeft: '10px'}} onClick={() => {
-            const hide = message.loading('玩命搜索中..', 0);
-            searchYoutubeVide(inputSearchValue).then((data) => {
-              setYoutubeResult(data);
-              setShowYoutubeModal(true);
-            }).finally(() => {
-              hide()
-            });
-              
-          }}>youtube</Button>
-          {youtubeResult !== null &&           <Modal 
-          width="95%"
-          title="搜索结果" 
-          visible={showYoutubeModal && youtubeResult} 
-          onOk={() => {
-            setShowYoutubeModal(false);
-          }} 
-          onCancel={() => {
-            setShowYoutubeModal(false);
-          }}>
-            <div>
-              {youtubeResult.items.map((item: any) => {
-                const {id, snippet} = item;
-                const {videoId} = id;
-                const {title, thumbnails, description} = snippet;
-                return <div key={id.videoId} onClick={() => {
-                  openYoutubeWindow(videoId, title);
-                }}
-                  style={{
-                    display: 'flex',
-                    margin: '14px 0',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <div style={{minWidth: '200px', maxWidth: '200px', minHeight: '200px', background: `no-repeat center url("${thumbnails.medium.url}")`}}></div>
-                  <div style={{flexGrow: 1, marginLeft: '14px'}}>
-                    <div style={{fontSize: '18px'}}>{title}</div>
-                    <div style={{fontSize: '15px', color: '#bbb'}}>{description}</div>
-                  </div>
-                </div>
-              })}
-            </div>
-            {youtubeResult.prevPageToken && <Button onClick={() => {
-              const hide = message.loading('玩命搜索中..', 0);
-              searchYoutubeVide(inputSearchValue, youtubeResult.prevPageToken).then((data) => {
-                setYoutubeResult(data);
-              }).finally(() => {
-                hide()
-              });
-            }}>上一页</Button>}
-            {youtubeResult.nextPageToken && <Button onClick={() => {
-              const hide = message.loading('玩命搜索中..', 0);
-              searchYoutubeVide(inputSearchValue, youtubeResult.nextPageToken).then((data) => {
-                setYoutubeResult(data);
-              }).finally(() => {
-                hide()
-              });
-            }}>下一页</Button>}
-          </Modal>}
-
           </div>
 
+          <div>
+            <Button
+            type="text"
+            style={{color: '#fff'}}
+            onClick={() => {
+              const hide = message.loading('加载记录中...', 0);
+              getRecords().then((records) => {
+                setRecords(records);
+                setShowRecordModal(true);
+              }).finally(() => {
+                hide();
+              });
+            }}>浏览记录</Button>
+          </div>
+          {
+            showRecordModal && <Modal 
+              width="95%"
+              title="浏览记录"
+              visible={showRecordModal}
+              onCancel={() => {setShowRecordModal(false)}}
+              onOk={() => {setShowRecordModal(false)}}
+            >
+              <div style={{width: '100%'}}>
+                {
+                  records.map(({file, timestamp, progress, type}) => {
+                    const splits = file.split('/');
+                    const title = splits[splits.length - 1];
+                    return <div key={file} style={{cursor: 'pointer', borderBottom: '1px solid #ccc', display: 'flex', justifyContent: 'space-between'}} onClick={() => {
+                      if (type === 'video') {
+                        playSubtitle$.next({...progress, file})
+                      }
+                      setShowRecordModal(false);
+                    }}>
+                      <div>{title}</div>
+                      {timestamp && <div>{new Date(timestamp).toLocaleDateString()}</div>}
+                    </div>;
+                  })
+                }
+              </div>
+            </Modal>
+          }
         </div>
       </div>
     </div>

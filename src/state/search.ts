@@ -47,6 +47,7 @@ export const tapSearch$ = tapWord$.pipe(
   map((words) => {
     return words.join(" ")
         .trim()
+        .replace(/^\p{P}+/u, "")
         .replace(/\p{P}+$/u, "");
   }),
   shareReplay(1),

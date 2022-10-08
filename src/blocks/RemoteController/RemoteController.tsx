@@ -39,7 +39,7 @@ export const RemoteController = ({
       action: 'startControl',
     });
     const sp = remoteControlOutput$.subscribe({
-      next({toZoneId, action, data,}) {
+      next({ toZoneId, action, data, }) {
         console.log('remote controller got remoteControlOutput, toZoneId:', toZoneId, 'action:', action, 'data:', data);
         if (toZoneId !== zone?.id) {
           console.log('remote controller got remoteControlOutput, not selected zone!');
@@ -65,19 +65,19 @@ export const RemoteController = ({
   }, [loopingSubtitle$, isPlaying$, scrollToIndex$, subtitles$, zone]);
 
   return <div
-  style={{
-    ...style,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-  }}
+    style={{
+      ...style,
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+    }}
   >
     <Input
       style={{ width: "100%" }}
       placeholder="选择窗口"
       value={zone?.title || ''}
       onChange={(e) => {
-        
+
       }}
       contentEditable={false}
       onFocus={() => {
@@ -107,9 +107,9 @@ export const RemoteController = ({
               }}
             >
               <Button onClick={(e) => {
-              e.stopPropagation();
-              zoneHighlightInput$.next(zone.id);
-              zoneHighlightOutput$.next(zone.id);
+                e.stopPropagation();
+                zoneHighlightInput$.next(zone.id);
+                zoneHighlightOutput$.next(zone.id);
               }}>高亮</Button> {zone.title}
             </div>
           );
@@ -118,60 +118,60 @@ export const RemoteController = ({
     )}
     {
       zone && zone.type === 'video' && <SubtitleComponent
-      filePath={zone.data.filePath}
-      title={zone.title}
-      subtitles$={subtitles$}
-      seekTo={(time) => {
-        remoteControlInput$.next({
-          toZoneId: zone.id,
-          action: 'seekTime',
-          data: {
-            time,
-          }
-        });
-      }}
-      isPlaying$={isPlaying$}
-      loopingSubtitle$={loopingSubtitle$}
-      scrollToIndex$={scrollToIndex$}
-      onSubtitlesChange={(nextSubtitles: Subtitle[]) => {
-        remoteControlInput$.next({
-          toZoneId: zone.id,
-          action: 'setSubtitles',
-          data: {
-            nextSubtitles,
-          }
-        });
-      }}
-      onScrollToIndexChange={(nextScrollToIndex: number) => {
-        remoteControlInput$.next({
-          toZoneId: zone.id,
-          action: 'scrollToIndex',
-          data: {
-            nextScrollToIndex,
-          }
-        });
-      }}
-      onLoopingSubtitleChange={(subtitle: Subtitle | null) => {
-        console.log('remote controller send loopingSubtitle:', subtitle);
-        remoteControlInput$.next({
-          toZoneId: zone.id,
-          action: 'loopingSubtitle',
-          data: {
-            subtitle,
-          }
-        });
-        loopingSubtitle$.next(subtitle);
-      }}
-      onPlayingChange={(playing: boolean) => {
-        remoteControlInput$.next({
-          toZoneId: zone.id,
-          action: 'playingChange',
-          data: {
-            playing,
-          }
-        });
-        isPlaying$.next(playing);
-      }}
+        filePath={zone.data.filePath}
+        title={zone.title}
+        subtitles$={subtitles$}
+        seekTo={(time) => {
+          remoteControlInput$.next({
+            toZoneId: zone.id,
+            action: 'seekTime',
+            data: {
+              time,
+            }
+          });
+        }}
+        isPlaying$={isPlaying$}
+        loopingSubtitle$={loopingSubtitle$}
+        scrollToIndex$={scrollToIndex$}
+        onSubtitlesChange={(nextSubtitles: Subtitle[]) => {
+          remoteControlInput$.next({
+            toZoneId: zone.id,
+            action: 'setSubtitles',
+            data: {
+              nextSubtitles,
+            }
+          });
+        }}
+        onScrollToIndexChange={(nextScrollToIndex: number) => {
+          remoteControlInput$.next({
+            toZoneId: zone.id,
+            action: 'scrollToIndex',
+            data: {
+              nextScrollToIndex,
+            }
+          });
+        }}
+        onLoopingSubtitleChange={(subtitle: Subtitle | null) => {
+          console.log('remote controller send loopingSubtitle:', subtitle);
+          remoteControlInput$.next({
+            toZoneId: zone.id,
+            action: 'loopingSubtitle',
+            data: {
+              subtitle,
+            }
+          });
+          loopingSubtitle$.next(subtitle);
+        }}
+        onPlayingChange={(playing: boolean) => {
+          remoteControlInput$.next({
+            toZoneId: zone.id,
+            action: 'playingChange',
+            data: {
+              playing,
+            }
+          });
+          isPlaying$.next(playing);
+        }}
       ></SubtitleComponent>
     }
   </div>

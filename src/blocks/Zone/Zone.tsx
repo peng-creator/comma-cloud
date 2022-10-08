@@ -7,17 +7,15 @@ import { Video } from '../Video/Video';
 import styles from './Zone.module.css';
 import { dragWindowEnd$, dragWindowStart$, isDraggingSplitBar$, zoneHighlightOutput$ } from "../../state/zone";
 import { PDFViewer } from '../PDFViewer/PDFViewer';
-import { SubtitleComponent } from '../Subtitle/Subtitle';
-import { Youtube } from '../Youtube/Youtube';
 import { RemoteController } from '../RemoteController/RemoteController';
+import { StandaloneSubtitle } from '../StandaloneSubtitle/StandaloneSubtitle';
 
 const ZoneMapping: { [key in ZoneType]: (...args: any[]) => JSX.Element | null} = {
   dict: Dict,
   pdf: PDFViewer,
   video: Video,
   cardMaker: CardMaker,
-  subtitle: SubtitleComponent,
-  youtube: Youtube,
+  subtitle: StandaloneSubtitle,
   remoteController: RemoteController,
 };
 
@@ -69,7 +67,7 @@ export const Zone = ({difinition} : {difinition: ZoneDefinition}) => {
     return <div id={`zone-${difinition.id}`} style={{ position:'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', padding: '0 14px'}}>
       {showMask && <div style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1,}}></div>}
       {highlight && <div style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 2, background: 'rgba(49, 106, 239, 0.6)'}}></div>}
-      <Component {...difinition.data} zoneId={difinition.id} style={{
+      <Component {...difinition.data} zoneId={difinition.id} title={difinition.title} style={{
         display: 'flex',
         flexDirection: 'column',
         width: '100%',
