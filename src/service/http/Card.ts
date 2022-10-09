@@ -8,7 +8,7 @@ export const getCardCollection = async (collectionName: string): Promise<FlashCa
 
 export const getCardCollections = async () => {
   const axios = await axiosInstancePromise;
-  return axios.get('/card').then(res => res.data);
+  return axios.get('/card').then(res => res.data as string[]);
 }
 
 export const searchCardCollections = async (search: string) => {

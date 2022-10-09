@@ -51,6 +51,7 @@ export const openNote$ = new Subject<PDFNote>();
 
 export const addSubtitle$ = new Subject<Subtitle>();
 export const openCardReviewAction$ = new Subject();
+export const saveCard$ = new BehaviorSubject<FlashCard | null>(null);
 
 const throttledAddSubtitle$ = addSubtitle$.pipe(throttleTime(3000));
 
@@ -64,7 +65,6 @@ const Component = ({ layoutMode }: { layoutMode: number }) => {
   const [searchFocus, setSearchFocus] = useState(false);
   const searchRef = useRef<any>(null);
   const [copiedText, setCopiedText] = useState('');
-  const [saveCard$] = useState(new BehaviorSubject<FlashCard | null>(null));
 
   useEffect(() => {
     const sp = saveCard$.pipe(debounceTime(1000)).subscribe({
@@ -293,7 +293,6 @@ const Component = ({ layoutMode }: { layoutMode: number }) => {
                 Math.min(1, (e.nativeEvent as any).wheelDelta)
               );
               e.currentTarget.scrollLeft -= delta * 30;
-              console.log("1111111");
             }}
           >
             {flashCards.map((card, index) => {

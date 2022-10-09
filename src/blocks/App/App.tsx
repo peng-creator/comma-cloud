@@ -380,14 +380,27 @@ export const App = () => {
                 title: "卡片编辑器",
                 type: "cardMaker",
                 data: {
-                  // name: "有道",
-                  // template: "http://mobile.youdao.com/dict?le=eng&q={}",
                 },
               },);
               setShowAddZone(false);
             }}
           >
             卡片编辑器
+          </Button>
+          <Button
+            type='ghost'
+            style={{color: '#ccc'}}
+            onClick={() => {
+              addZone({
+                title: "卡片复习器",
+                type: "cardReviewer",
+                data: {
+                },
+              },);
+              setShowAddZone(false);
+            }}
+          >
+            卡片复习器
           </Button>
           <Button
             type='ghost'
