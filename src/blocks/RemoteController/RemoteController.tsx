@@ -18,9 +18,11 @@ import { SubtitleComponent } from "../Subtitle/Subtitle";
 export const RemoteController = ({
   style,
   title,
+  layoutMode,
 }: {
   style: CSSProperties;
   title: string;
+  layoutMode: number;
 }) => {
   const [zone, setZone] = useState<ZoneDefinition | null>(null);
   const [selecting, setSelecting] = useState(false);
@@ -73,7 +75,7 @@ export const RemoteController = ({
     }}
   >
     <Input
-      style={{ width: "100%" }}
+      style={{ width: "100%", ...( layoutMode === 0 ? {} : {'display' : 'none'}) }}
       placeholder="选择窗口"
       value={zone?.title || ''}
       onChange={(e) => {
@@ -118,6 +120,7 @@ export const RemoteController = ({
     )}
     {
       zone && zone.type === 'video' && <SubtitleComponent
+        layoutMode={layoutMode}
         filePath={zone.data.filePath}
         title={zone.title}
         subtitles$={subtitles$}

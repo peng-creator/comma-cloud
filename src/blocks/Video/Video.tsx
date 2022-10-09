@@ -35,12 +35,14 @@ export const Video = ({
   style,
   title,
   zoneId,
+  layoutMode,
 }: {
   style: CSSProperties;
   filePath: string;
   subtitle?: Subtitle;
   zoneId: string;
   title: string;
+  layoutMode: number;
 }) => {
   const [subtitles, _setSubtitles] = useState([] as Subtitle[]);
   const ref = useRef<ReactPlayer | null>(null);
@@ -62,6 +64,7 @@ export const Video = ({
   );
   const [scrollToIndex$] = useState(new BehaviorSubject<number>(0));
   const [startPublishingData, setStartPublishingData] = useState(false);
+
 
   useEffect(() => {
     if (!subtitles || subtitles.length === 0 || !subtitles[scrollToIndex]) {
@@ -337,6 +340,7 @@ export const Video = ({
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
+        justifyContent: layoutMode === 0 ? 'flex-start' : 'center'
       }}
       ref={wrapperRef}
     >
@@ -453,30 +457,37 @@ export const Video = ({
           />
         </div>
       </Resizable>
-      {player !== null && (
-        <SubtitleComponent
-          fromZoneId={zoneId}
-          title={title}
-          filePath={filePath}
-          subtitles$={subtitles$}
-          isPlaying$={isPlaying$}
-          seekTo={(time) => player.seekTo(time, 'seconds')}
-          loopingSubtitle$={loopingSubtitle$}
-          scrollToIndex$={scrollToIndex$}
-          onSubtitlesChange={(nextSubtitles: Subtitle[]) => {
-            setSubtitles(nextSubtitles);
-          }}
-          onScrollToIndexChange={(nextScrollToIndex: number) => {
-            setScrollToIndex(nextScrollToIndex);
-          }}
-          onLoopingSubtitleChange={(subtitle: Subtitle | null) => {
-            setSubtitleLooping(subtitle);
-          }}
-          onPlayingChange={(playing: boolean) => {
-            setPlaying(playing);
-          }}
-        />
-      )}
+      <div style={{
+        width: '100%',
+        flexGrow: 1,
+        display: layoutMode === 0 ? 'flex' : 'none',
+      }}>
+        {player !== null && (
+          <SubtitleComponent
+            layoutMode={layoutMode}
+            fromZoneId={zoneId}
+            title={title}
+            filePath={filePath}
+            subtitles$={subtitles$}
+            isPlaying$={isPlaying$}
+            seekTo={(time) => player.seekTo(time, 'seconds')}
+            loopingSubtitle$={loopingSubtitle$}
+            scrollToIndex$={scrollToIndex$}
+            onSubtitlesChange={(nextSubtitles: Subtitle[]) => {
+              setSubtitles(nextSubtitles);
+            }}
+            onScrollToIndexChange={(nextScrollToIndex: number) => {
+              setScrollToIndex(nextScrollToIndex);
+            }}
+            onLoopingSubtitleChange={(subtitle: Subtitle | null) => {
+              setSubtitleLooping(subtitle);
+            }}
+            onPlayingChange={(playing: boolean) => {
+              setPlaying(playing);
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 };

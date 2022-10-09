@@ -30,7 +30,7 @@ import "@blueprintjs/core/lib/css/blueprint.css";
 import "@blueprintjs/icons/lib/css/blueprint-icons.css";
 import { dropRight } from "lodash";
 import { Zone } from "../Zone/Zone";
-import { dragWindowEnd$, dragWindowStart$, isDraggingSplitBar$ } from "../../state/zone";
+import { dragWindowEnd$, dragWindowStart$, isDraggingSplitBar$, toggleLayout$ } from "../../state/zone";
 import { AppstoreOutlined, SearchOutlined, ArrowsAltOutlined, ShrinkOutlined } from "@ant-design/icons";
 import { search$, searchSentence } from "../../state/search";
 import { TapCache } from "../../compontent/TapCache/TapCache";
@@ -104,7 +104,6 @@ export const App = () => {
   const [currentNode, setCurrentNode] = useState<MosaicNode<string> | null>(null);
   const [inputSearchValue, setInputSearchValue] = useState("");
   const searchBoxRef: any = useRef<any>();
-  const [fullScreenZoneId, setFullScreenZoneId] = useState('');
   const [showRecordModal, setShowRecordModal] = useState(false);
   const [records, setRecords] = useState([] as Record[])
 
@@ -459,15 +458,14 @@ export const App = () => {
                 }}
                 toolbarControls={React.Children.toArray([
                   <Button type="text" onClick={() => {
-                    if (id === fullScreenZoneId) {
-                      setFullScreenZoneId('');
-                    } else {
-                      setFullScreenZoneId(id);
-                    }
-                  }}><Icon style={{ position: 'relative', top: '-3px' }} icon="fullscreen" size={12} color="#5f6b7c" /></Button>,
-                  <RemoveButton onClick={() => {
-                    removeZone(zone);
-                  }} />,
+                    toggleLayout$.next(id);
+                  }}>
+                    <Icon style={{ position: 'relative', top: '-1px' }} icon="control" size={18} color="#5f6b7c" /></Button>,
+                  <div style={{transform: 'scale(1.4)',  position: 'relative', left: '-2px'}}>
+                    <RemoveButton onClick={() => {
+                      removeZone(zone);
+                    }} />
+                  </div>,
                 ])}
                 title={zone.title || '没有标题'}
                 // createNode={() => {

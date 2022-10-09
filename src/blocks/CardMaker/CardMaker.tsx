@@ -54,7 +54,7 @@ export const openCardReviewAction$ = new Subject();
 
 const throttledAddSubtitle$ = addSubtitle$.pipe(throttleTime(3000));
 
-const Component = () => {
+const Component = ({ layoutMode }: { layoutMode: number }) => {
   const [flashCards, setFlashCards] = useState<FlashCard[]>([]); // 卡片集，一个卡片集存储关键词相同的卡片。
   const [currentCard, setCurrentCard] = useState<FlashCard | null>(null);
   const [cardCollections, setCardCollections] = useState<string[]>([]); // 全部卡片集
@@ -156,114 +156,115 @@ const Component = () => {
     <div
       style={{
         display: "flex",
-        // flexDirection: "column",
+        flexDirection: layoutMode === 0 ? "row" : "column",
         width: "100%",
         height: "100%",
-        overflow: "hidden",
+        overflow: "auto",
         position: "relative",
+        minWidth: '396px',
       }}
     >
-      <div style={{width: '100%'}}>
-      <Input
-        style={{ width: "100%" }}
-        placeholder="搜索卡片"
-        value={searchName}
-        onChange={(e) => {
-          const search = e.target.value;
-          setSearchName(search);
-          setCurrentCollectionName("");
-          if (search) {
-            getCollectionCardsByName(search);
-            searchCardCollections(search).then((collections) =>
-              setSearchResultList(collections)
-            );
-          } else {
+      <div style={{ width: layoutMode === 0 ? '300px' : '100%', height: layoutMode === 0 ? '100%' : '200px', flexGrow: 1 }}>
+        <Input
+          style={{ width: "100%" }}
+          placeholder="搜索卡片"
+          value={searchName}
+          onChange={(e) => {
+            const search = e.target.value;
+            setSearchName(search);
             setCurrentCollectionName("");
-            getCardCollections().then((res) => setCardCollections(res));
-            setSearchResultList([]);
-          }
-        }}
-        onKeyDown={(e) => {
-          if (e.key.toLowerCase() === "enter") {
-            setCurrentCollectionName(searchName);
-            getCollectionCardsByName(searchName);
-            setSearchFocus(false);
-            searchRef.current?.blur();
-          }
-        }}
-        onFocus={() => {
-          setSearchFocus(true);
-        }}
-        ref={searchRef}
-      />
-      {/* 没有搜索内容时，显示全部 */}
-      {searchResultList.length === 0 && (
-        <Virtuoso
-          style={{ height: "calc(100% - 32px)" }}
-          totalCount={cardCollections.length}
-          itemContent={(index) => {
-            const collection = cardCollections[index];
-            return (
-              <div
-                style={{ padding: "14px", borderBottom: ".5px solid #ddd" }}
-                onClick={() => {
-                  console.log("collection:", collection);
-                  setCurrentCollectionName(collection);
-                  getCollectionCardsByName(collection);
-                  searchRef.current?.blur();
-                  setSearchFocus(false);
-                  setSearchName(collection);
-                }}
-              >
-                {collection}
-              </div>
-            );
+            if (search) {
+              getCollectionCardsByName(search);
+              searchCardCollections(search).then((collections) =>
+                setSearchResultList(collections)
+              );
+            } else {
+              setCurrentCollectionName("");
+              getCardCollections().then((res) => setCardCollections(res));
+              setSearchResultList([]);
+            }
           }}
-        />
-      )}
-      {searchResultList.length > 0 && (
-        <Virtuoso
-          style={{ height: "calc(100% - 32px)" }}
-          totalCount={searchResultList.length}
-          itemContent={(index) => {
-            const { id, match, score, terms } = searchResultList[index];
-            const item = () => {
-              return id.split(/\s/).map((word: string, wordIndex: number) => {
-                if (terms.includes(word.replaceAll(/\W/g, "").toLowerCase())) {
-                  return (
-                    <span key={wordIndex} style={{ color: "rgb(226, 68, 68)" }}>
-                      {word}{" "}
-                    </span>
-                  );
-                }
-                return <span key={wordIndex}>{word} </span>;
-              });
-            };
-            return (
-              <div
-                key={id}
-                style={{
-                  display: "flex",
-                  borderBottom: ".5px solid #ddd",
-                  padding: "14px",
-                  cursor: "pointer",
-                }}
-                tabIndex={0}
-                onKeyDown={() => {}}
-                onClick={() => {
-                  setCurrentCollectionName(id);
-                  getCollectionCardsByName(id);
-                  setSearchName(id);
-                  searchRef.current?.blur();
-                  setSearchFocus(false);
-                }}
-              >
-                <div>{item()}</div>
-              </div>
-            );
+          onKeyDown={(e) => {
+            if (e.key.toLowerCase() === "enter") {
+              setCurrentCollectionName(searchName);
+              getCollectionCardsByName(searchName);
+              setSearchFocus(false);
+              searchRef.current?.blur();
+            }
           }}
+          onFocus={() => {
+            setSearchFocus(true);
+          }}
+          ref={searchRef}
         />
-      )}
+        {/* 没有搜索内容时，显示全部 */}
+        {searchResultList.length === 0 && (
+          <Virtuoso
+            style={{ height: "calc(100% - 32px)" }}
+            totalCount={cardCollections.length}
+            itemContent={(index) => {
+              const collection = cardCollections[index];
+              return (
+                <div
+                  style={{ padding: "14px", borderBottom: ".5px solid #ddd" }}
+                  onClick={() => {
+                    console.log("collection:", collection);
+                    setCurrentCollectionName(collection);
+                    getCollectionCardsByName(collection);
+                    searchRef.current?.blur();
+                    setSearchFocus(false);
+                    setSearchName(collection);
+                  }}
+                >
+                  {collection}
+                </div>
+              );
+            }}
+          />
+        )}
+        {searchResultList.length > 0 && (
+          <Virtuoso
+            style={{ height: "calc(100% - 32px)" }}
+            totalCount={searchResultList.length}
+            itemContent={(index) => {
+              const { id, match, score, terms } = searchResultList[index];
+              const item = () => {
+                return id.split(/\s/).map((word: string, wordIndex: number) => {
+                  if (terms.includes(word.replaceAll(/\W/g, "").toLowerCase())) {
+                    return (
+                      <span key={wordIndex} style={{ color: "rgb(226, 68, 68)" }}>
+                        {word}{" "}
+                      </span>
+                    );
+                  }
+                  return <span key={wordIndex}>{word} </span>;
+                });
+              };
+              return (
+                <div
+                  key={id}
+                  style={{
+                    display: "flex",
+                    borderBottom: ".5px solid #ddd",
+                    padding: "14px",
+                    cursor: "pointer",
+                  }}
+                  tabIndex={0}
+                  onKeyDown={() => { }}
+                  onClick={() => {
+                    setCurrentCollectionName(id);
+                    getCollectionCardsByName(id);
+                    setSearchName(id);
+                    searchRef.current?.blur();
+                    setSearchFocus(false);
+                  }}
+                >
+                  <div>{item()}</div>
+                </div>
+              );
+            }}
+          />
+        )}
       </div>
 
       {currentCollectionName && (
@@ -320,12 +321,16 @@ const Component = () => {
               style={{
                 height: "calc(100% - 30px)",
                 width: "100%",
-                overflowY: "auto",
+                overflowY: "hidden",
+                display: 'flex',
+                flexDirection: 'column',
               }}
             >
               <div
                 style={{
-                  minHeight: "50%",
+                  flexGrow: 1,
+                  height: '70%',
+                  maxHeight: 'calc(100% - 200px)',
                   backgroundColor: "rgb(72, 72, 72)",
                   overflow: "hidden",
                   display: "flex",
@@ -380,13 +385,14 @@ const Component = () => {
                       >
                         <div style={{ margin: "0 14px" }}>-{index}.</div>
                         <LazyInput
+                          showEditBtn
                           onWordClick={() => {
                             playSubtitle$.next(subtitle);
                           }}
                           value={file}
                           displayValueTo={(file: string) => {
                             const li = file.split("/");
-                            return li[li.length - 1];
+                            return stringFolder(li[li.length - 1], 30) ;
                           }}
                           onChange={(updatedFilePath: string) => {
                             const updatedSubtitle = {
@@ -428,16 +434,16 @@ const Component = () => {
                     const { file } = pdfNote;
                     const fileName = file.split("/").pop();
                     return (
-                      <div key={index} style={{display: 'flex'}}>
+                      <div key={index} style={{ display: 'flex' }}>
                         <div
                           tabIndex={0}
                           onClick={() => {
                             openNote$.next(pdfNote);
                           }}
-                          onKeyDown={() => {}}
+                          onKeyDown={() => { }}
                           style={{ cursor: "pointer", marginRight: '14px' }}
                         >
-                          [pdf] {stringFolder(fileName || file, 60)}
+                          [pdf] {stringFolder(fileName || file, 30)}
                         </div>
                         <Popconfirm
                           title="删除"
@@ -480,7 +486,9 @@ const Component = () => {
               </div>
               <div
                 style={{
-                  minHeight: "50%",
+                  height: "30%",
+                  maxHeight: '200px',
+                  flexGrow: 1,
                   backgroundColor: "rgb(62, 62, 62)",
                   display: "flex",
                   flexDirection: "column",
@@ -488,13 +496,13 @@ const Component = () => {
                 }}
               >
                 <div>解释：</div>
-                {copiedText.trim() && <div style={{margin: '14px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center'}}>
-                    <span style={{marginRight: '14px'}}>{copiedText}</span><Button type="ghost" style={{color: '#fff'}} onClick={() => {
-                      currentCard.back += `\n${copiedText}`;
-                      currentCard.clean = false;
-                      setFlashCards([...flashCards]);
-                      saveCard$.next(currentCard);
-                    }}>填入</Button>
+                {copiedText.trim() && <div style={{ margin: '14px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+                  <span style={{ marginRight: '14px' }}>{copiedText}</span><Button type="ghost" style={{ color: '#fff' }} onClick={() => {
+                    currentCard.back += `\n${copiedText}`;
+                    currentCard.clean = false;
+                    setFlashCards([...flashCards]);
+                    saveCard$.next(currentCard);
+                  }}>填入</Button>
                 </div>
                 }
                 <Input.TextArea

@@ -37,6 +37,7 @@ export const SubtitleComponent = ({
   onLoopingSubtitleChange,
   onPlayingChange,
   fromZoneId,
+  layoutMode,
 }: {
   fromZoneId?: string;
   title: string;
@@ -51,6 +52,7 @@ export const SubtitleComponent = ({
   onScrollToIndexChange: (nextScrollToIndex: number) => void;
   onLoopingSubtitleChange: (subtitle: Subtitle | null) => void;
   onPlayingChange: (playing: boolean) => void;
+  layoutMode: number;
 }) => {
   console.log('entering SubtitleComponent, title:', title);
   const [_subtitles] = useBehavior(subtitles$, []);
@@ -229,6 +231,7 @@ export const SubtitleComponent = ({
             background: "black",
             padding: "6px 10px",
             borderRadius: "0 0 15px 15px",
+            flexWrap: 'wrap',
           }}
         >
           <Button
@@ -380,17 +383,19 @@ export const SubtitleComponent = ({
         <div style={{flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between'}}>
           <div
             style={{
-              maxHeight: "calc(100% - 36px)",
-              height: "calc(100% - 50px)",
               minHeight: subtitleFontSize * 2 + 'px',
               overflow: 'hidden',
               position: 'relative',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              ...(singleMode ? {
+                maxHeight: "calc(100% - 36px)",
+                height: "calc(100% - 50px)",
+              } : {})
             }}
           >
-            <div style={{position: 'absolute', maxHeight: '100%', overflowY: 'auto'}}>
+            <div style={{maxHeight: '100%', overflowY: 'auto', ...(singleMode ? { position: 'absolute', } : {})}}>
               <div
                 style={{
                   flexGrow: 1,
@@ -598,7 +603,7 @@ export const SubtitleComponent = ({
         <div style={{
           borderBottom: singleMode ? 'none' : "1px solid #c4bfbf",
           color: "#fff",
-          display: 'flex',
+          display: singleMode ? 'flex' : 'none',
           alignItems: 'stretch',
           overflow: 'hidden',
           paddingBottom: '14px',
@@ -641,7 +646,7 @@ export const SubtitleComponent = ({
       <div
         style={{
           width: "100%",
-          display: "flex",
+          display: layoutMode === 0 ? 'flex' : 'none',
           justifyContent: "center",
           background: "black",
           flexWrap: 'wrap',

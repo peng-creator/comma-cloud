@@ -6,3 +6,5 @@ export const dragWindowEnd$ = new Subject<any>();
 
 export const zoneHighlightInput$ = new Subject<string>();
 export const zoneHighlightOutput$ = new Subject<string>();
+export type ZoneId = string;
+export const toggleLayout$ = new Subject<ZoneId>();
