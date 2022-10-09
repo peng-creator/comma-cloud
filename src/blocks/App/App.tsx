@@ -602,7 +602,9 @@ export const App = () => {
                     }
                     setShowRecordModal(false);
                   }}>
-                    <div>{title}</div>
+                    <div style={{maxWidth: 'calc(100% - 30px)', overflow: 'auto'}}>
+                      <div>{title}</div>
+                    </div>
                     {timestamp && <div style={{ marginLeft: '14px' }}>{new Date(timestamp).toLocaleDateString()}</div>}
                   </div>;
                 })
