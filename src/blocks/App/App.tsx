@@ -343,7 +343,7 @@ export const App = () => {
           setShowAddZone(false);
         }}
         visible={showAddZone}
-        height={100}
+        height={200}
         bodyStyle={{
           background: 'black'
         }}
@@ -355,6 +355,7 @@ export const App = () => {
             display: "flex",
             justifyContent: "space-around",
             alignItems: "center",
+            flexWrap: 'wrap',
           }}
         >
           <Button
@@ -553,7 +554,7 @@ export const App = () => {
           />
         </div>
 
-        <div>
+        <div style={{minWidth: '134px'}}>
           <Button
             type="text"
             style={{ color: '#ccc' }}
@@ -610,12 +611,12 @@ export const App = () => {
           </Modal>
         }
       </div>
-      {!showBottomBar && <Button 
-      type="text"
-      onClick={() => {
-        setShowBottomBar(true);
-      }}
-      style={{position: 'absolute', bottom: '14px', right: '14px', zIndex: 4, color: '#ccc', fontSize: '20px'}}>
+      {!showBottomBar && <Button
+        type="text"
+        onClick={() => {
+          setShowBottomBar(true);
+        }}
+        style={{ position: 'absolute', bottom: '14px', right: '14px', zIndex: 4, color: '#ccc', fontSize: '20px' }}>
         <UpCircleOutlined />
       </Button>}
     </div>
