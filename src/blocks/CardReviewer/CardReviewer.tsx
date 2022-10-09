@@ -41,7 +41,7 @@ const Component = () => {
           }
         }
         let collectionKeywordList = await getCardCollections(); // 等待集合列表加载完毕
-        // collectionKeywordList = shuffle(collectionKeywordList);
+        collectionKeywordList = shuffle(collectionKeywordList);
         while (collectionKeywordList.length > currentCollectionIndex) {
           const keyword = collectionKeywordList[currentCollectionIndex];
           currentCollectionIndex += 1;

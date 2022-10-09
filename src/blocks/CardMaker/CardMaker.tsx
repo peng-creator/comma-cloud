@@ -331,6 +331,7 @@ const Component = ({ layoutMode }: { layoutMode: number }) => {
                   flexGrow: 1,
                   height: '70%',
                   maxHeight: 'calc(100% - 200px)',
+                  minHeight: '100px',
                   backgroundColor: "#484d56",
                   overflow: "hidden",
                   display: "flex",
