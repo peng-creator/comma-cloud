@@ -135,7 +135,6 @@ const Component = () => {
         display: 'flex',
         flexDirection: 'column',
         position: 'relative',
-        margin: '0 14px',
       }}
     >
       <div
