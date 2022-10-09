@@ -31,7 +31,7 @@ import "@blueprintjs/icons/lib/css/blueprint-icons.css";
 import { dropRight } from "lodash";
 import { Zone } from "../Zone/Zone";
 import { dragWindowEnd$, dragWindowStart$, isDraggingSplitBar$, toggleLayout$ } from "../../state/zone";
-import { AppstoreOutlined, SearchOutlined, ArrowsAltOutlined, ShrinkOutlined } from "@ant-design/icons";
+import { AppstoreOutlined, SearchOutlined, ArrowsAltOutlined, ShrinkOutlined, DownOutlined, UpCircleOutlined } from "@ant-design/icons";
 import { search$, searchSentence } from "../../state/search";
 import { TapCache } from "../../compontent/TapCache/TapCache";
 import { StatusBar, Style } from '@capacitor/status-bar';
@@ -107,6 +107,7 @@ export const App = () => {
   const [showRecordModal, setShowRecordModal] = useState(false);
   const [records, setRecords] = useState([] as Record[]);
   const [fullScreenZoneId, setFullScreenZoneId] = useState('');
+  const [showBottomBar, setShowBottomBar] = useState(true);
 
   const saveWorkZones = (currentNode: MosaicNode<string> | null, zones: ZoneDefinition[]) => {
     console.log('currentNode: ', currentNode);
@@ -114,7 +115,7 @@ export const App = () => {
     let serializedZones = '[]';
     try {
       serializedWindowTree = JSON.stringify(currentNode);
-    } catch(e) {
+    } catch (e) {
       if (typeof currentNode === 'string') {
         serializedWindowTree = currentNode;
       }
@@ -122,7 +123,7 @@ export const App = () => {
     try {
       console.log('JSON.stringify(zones), zoens:', zones);
       serializedZones = JSON.stringify(zones);
-    } catch(e) {
+    } catch (e) {
       console.log('JSON.stringify(zones) failed:', e);
     }
     localStorage.setItem('serializedWindowTree', serializedWindowTree);
@@ -217,9 +218,9 @@ export const App = () => {
         filePath,
         fromZoneId,
       }) {
-        console.log('openStandaloneSubtitle: ',         title,
-        filePath,
-        fromZoneId,);
+        console.log('openStandaloneSubtitle: ', title,
+          filePath,
+          fromZoneId,);
         addZone({
           title,
           type: 'subtitle',
@@ -270,12 +271,12 @@ export const App = () => {
       let currentNode = null;
       try {
         currentNode = JSON.parse(serializedWindowTree);
-      } catch(e) {
+      } catch (e) {
         currentNode = serializedWindowTree;
       }
       try {
         zones = JSON.parse(serializedZones);
-      } catch(e) {
+      } catch (e) {
       }
       console.log('zones:', zones);
       console.log('currentNode:', currentNode);
@@ -358,7 +359,7 @@ export const App = () => {
         >
           <Button
             type='ghost'
-            style={{color: '#ccc'}}
+            style={{ color: '#ccc' }}
             onClick={() => {
               addZone({
                 title: "词典",
@@ -376,7 +377,7 @@ export const App = () => {
           </Button>
           <Button
             type='ghost'
-            style={{color: '#ccc'}}
+            style={{ color: '#ccc' }}
             onClick={() => {
               addZone({
                 title: "卡片编辑器",
@@ -391,7 +392,7 @@ export const App = () => {
           </Button>
           <Button
             type='ghost'
-            style={{color: '#ccc'}}
+            style={{ color: '#ccc' }}
             onClick={() => {
               addZone({
                 title: "卡片复习器",
@@ -406,7 +407,7 @@ export const App = () => {
           </Button>
           <Button
             type='ghost'
-            style={{color: '#ccc'}}
+            style={{ color: '#ccc' }}
             onClick={() => {
               addZone({
                 title: "遥控器",
@@ -423,7 +424,7 @@ export const App = () => {
           </Button>
           <Button
             type='ghost'
-            style={{color: '#ccc'}}
+            style={{ color: '#ccc' }}
             onClick={() => {
               setShowResourceLoader(true);
               setShowAddZone(false);
@@ -458,105 +459,104 @@ export const App = () => {
           );
         })}
       </ContextMenu>
-      <div style={{ height: "100%" }}>
 
-        <div style={{ height: 'calc(100% - 50px)' }}>
-          <MosaicNumber
-            blueprintNamespace="bp4"
-            className={THEMES['Blueprint Dark']}
-            zeroStateView={<div>没有打开的窗口</div>}
-            resize={{
-              minimumPaneSizePercentage: 0
+      <div style={{ height: showBottomBar ? 'calc(100% - 50px)' : '100%' }}>
+        <MosaicNumber
+          blueprintNamespace="bp4"
+          className={THEMES['Blueprint Dark']}
+          zeroStateView={<div>没有打开的窗口</div>}
+          resize={{
+            minimumPaneSizePercentage: 0
+          }}
+          renderTile={(id: string, path: any) => {
+            console.log('renderTile, path:', path);
+            console.log('renderTile, id:', id);
+            const zone = zones.find(zone => zone.id === id);
+            if (!zone) {
+              return null;
+            }
+            return (<MosaicWindowNumber
+              className={fullScreenZoneId === zone.id ? 'fullScreenZone' : ''}
+              onDragStart={() => {
+                dragWindowStart$.next(true);
+              }}
+              onDragEnd={() => {
+                dragWindowEnd$.next(true);
+              }}
+              toolbarControls={React.Children.toArray([
+                zone.multiLayout === false ? null : <Button type="text" onClick={() => {
+                  toggleLayout$.next(id);
+                }}>
+                  <Icon style={{ position: 'relative', top: '-1px' }} icon="control" size={18} color="#5f6b7c" /></Button>,
+                <Button type="text" style={{ marginRight: '12px' }} onClick={() => {
+                  if (fullScreenZoneId) {
+                    setFullScreenZoneId('');
+                  } else {
+                    setFullScreenZoneId(zone.id);
+                  }
+                }}>
+                  <Icon style={{ position: 'relative', top: '-1px' }} icon={zone.id === fullScreenZoneId ? "duplicate" : "square"} size={18} color="#5f6b7c" />
+                </Button>,
+                <div style={{ transform: 'scale(1.4)', position: 'relative', left: '-2px' }}>
+                  <RemoveButton onClick={() => {
+                    removeZone(zone);
+                  }} />
+                </div>,
+              ])}
+              title={zone.title || '没有标题'}
+              // createNode={() => {
+              //   return ++windowCount;
+              // }}
+              path={path}
+            >
+              <Zone difinition={zone}></Zone>
+            </MosaicWindowNumber>
+            )
+          }}
+          value={currentNode}
+          onChange={(node: MosaicNode<string> | null) => {
+            setCurrentNode(node);
+            saveWorkZones(node, zones);
+          }}
+        />
+      </div>
+      <div style={{ display: showBottomBar ? 'flex' : 'none', justifyContent: 'space-between', alignItems: 'center', paddingRight: '14px' }}>
+        <div style={{ width: '420px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', }}>
+          <Button
+            style={{ color: '#ccc', padding: '0 30px', height: '50px', fontSize: '25px' }}
+            type="text"
+            onClick={() => {
+              setShowAddZone(true);
+            }}><AppstoreOutlined /></Button>
+          <Input
+            prefix={<SearchOutlined />}
+            ref={searchBoxRef}
+            type="text"
+            value={inputSearchValue}
+            onChange={(e) => {
+              setInputSearchValue(e.target.value);
             }}
-            renderTile={(id: string, path: any) => {
-              console.log('renderTile, path:', path);
-              console.log('renderTile, id:', id);
-              const zone = zones.find(zone => zone.id === id);
-              if (!zone) {
-                return null;
+            style={{
+              color: "rgb(100, 100, 100)",
+              fontSize: "24px",
+              flexGrow: 1,
+              maxWidth: '300px',
+              height: '30px'
+            }}
+            onKeyDown={(e) => {
+              const key = e.key.toLowerCase();
+              if (key === "enter".toLowerCase()) {
+                searchSentence(inputSearchValue);
               }
-              return (<MosaicWindowNumber
-                className={fullScreenZoneId === zone.id ? 'fullScreenZone' : ''}
-                onDragStart={() => {
-                  dragWindowStart$.next(true);
-                }}
-                onDragEnd={() => {
-                  dragWindowEnd$.next(true);
-                }}
-                toolbarControls={React.Children.toArray([
-                  zone.multiLayout === false ? null : <Button type="text" onClick={() => {
-                    toggleLayout$.next(id);
-                  }}>
-                    <Icon style={{ position: 'relative', top: '-1px' }} icon="control" size={18} color="#5f6b7c" /></Button>,
-                  <Button type="text" style={{marginRight: '12px'}} onClick={() => {
-                    if (fullScreenZoneId) {
-                      setFullScreenZoneId('');
-                    } else {
-                      setFullScreenZoneId(zone.id);
-                    }
-                  }}>
-                    <Icon style={{ position: 'relative', top: '-1px' }} icon={zone.id === fullScreenZoneId ? "duplicate" : "square" } size={18} color="#5f6b7c" />
-                  </Button>,
-                  <div style={{transform: 'scale(1.4)',  position: 'relative', left: '-2px'}}>
-                    <RemoveButton onClick={() => {
-                      removeZone(zone);
-                    }} />
-                  </div>,
-                ])}
-                title={zone.title || '没有标题'}
-                // createNode={() => {
-                //   return ++windowCount;
-                // }}
-                path={path}
-              >
-                <Zone difinition={zone}></Zone>
-              </MosaicWindowNumber>
-              )
             }}
-            value={currentNode}
-            onChange={(node: MosaicNode<string> | null) => {
-              setCurrentNode(node);
-              saveWorkZones(node, zones);
-            }}
+            placeholder="搜索"
           />
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingRight: '14px' }}>
-          <div style={{ width: '420px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', }}>
-            <Button
-              style={{ color: '#ccc', padding: '0 30px', height: '50px', fontSize: '25px' }}
-              type="text"
-              onClick={() => {
-                setShowAddZone(true);
-              }}><AppstoreOutlined /></Button>
-            <Input
-              prefix={<SearchOutlined />}
-              ref={searchBoxRef}
-              type="text"
-              value={inputSearchValue}
-              onChange={(e) => {
-                setInputSearchValue(e.target.value);
-              }}
-              style={{
-                color: "rgb(100, 100, 100)",
-                fontSize: "24px",
-                flexGrow: 1,
-                maxWidth: '300px',
-                height: '30px'
-              }}
-              onKeyDown={(e) => {
-                const key = e.key.toLowerCase();
-                if (key === "enter".toLowerCase()) {
-                  searchSentence(inputSearchValue);
-                }
-              }}
-              placeholder="搜索"
-            />
-          </div>
 
-          <div>
-            <Button
+        <div>
+          <Button
             type="text"
-            style={{color: '#ccc'}}
+            style={{ color: '#ccc' }}
             onClick={() => {
               const hide = message.loading('加载记录中...', 0);
               getRecords().then((records) => {
@@ -566,40 +566,58 @@ export const App = () => {
                 hide();
               });
             }}>浏览记录</Button>
-          </div>
-          {
-            showRecordModal && <Modal 
-              width="95%"
-              bodyStyle={{
-                background: '#000'
-              }}
-              footer={null}
-              closable={false}              
-              visible={showRecordModal}
-              onCancel={() => {setShowRecordModal(false)}}
-              onOk={() => {setShowRecordModal(false)}}
-            >
-              <div style={{width: '100%'}}>
-                {
-                  records.map(({file, timestamp, progress, type}) => {
-                    const splits = file.split('/');
-                    const title = splits[splits.length - 1];
-                    return <div key={file} style={{cursor: 'pointer', borderBottom: '1px solid #ccc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#ccc', marginBottom: '14px'}} onClick={() => {
-                      if (type === 'video') {
-                        playSubtitle$.next({...progress, file})
-                      }
-                      setShowRecordModal(false);
-                    }}>
-                      <div>{title}</div>
-                      {timestamp && <div style={{marginLeft: '14px'}}>{new Date(timestamp).toLocaleDateString()}</div>}
-                    </div>;
-                  })
-                }
-              </div>
-            </Modal>
-          }
+          <Button
+            type="text"
+            style={{
+              color: '#ccc'
+            }}
+            onClick={() => {
+              setShowBottomBar(false);
+            }}
+          >
+            <DownOutlined />
+          </Button>
         </div>
+        {
+          showRecordModal && <Modal
+            width="95%"
+            bodyStyle={{
+              background: '#000'
+            }}
+            footer={null}
+            closable={false}
+            visible={showRecordModal}
+            onCancel={() => { setShowRecordModal(false) }}
+            onOk={() => { setShowRecordModal(false) }}
+          >
+            <div style={{ width: '100%' }}>
+              {
+                records.map(({ file, timestamp, progress, type }) => {
+                  const splits = file.split('/');
+                  const title = splits[splits.length - 1];
+                  return <div key={file} style={{ cursor: 'pointer', borderBottom: '1px solid #ccc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#ccc', marginBottom: '14px' }} onClick={() => {
+                    if (type === 'video') {
+                      playSubtitle$.next({ ...progress, file })
+                    }
+                    setShowRecordModal(false);
+                  }}>
+                    <div>{title}</div>
+                    {timestamp && <div style={{ marginLeft: '14px' }}>{new Date(timestamp).toLocaleDateString()}</div>}
+                  </div>;
+                })
+              }
+            </div>
+          </Modal>
+        }
       </div>
+      {!showBottomBar && <Button 
+      type="text"
+      onClick={() => {
+        setShowBottomBar(true);
+      }}
+      style={{position: 'absolute', bottom: '14px', right: '14px', zIndex: 4, color: '#ccc', fontSize: '20px'}}>
+        <UpCircleOutlined />
+      </Button>}
     </div>
   );
 };
