@@ -342,6 +342,9 @@ export const App = () => {
         }}
         visible={showAddZone}
         height={100}
+        bodyStyle={{
+          background: 'black'
+        }}
       >
         <div
           style={{
@@ -353,6 +356,8 @@ export const App = () => {
           }}
         >
           <Button
+            type='ghost'
+            style={{color: '#ccc'}}
             onClick={() => {
               addZone({
                 title: "词典",
@@ -368,6 +373,8 @@ export const App = () => {
             词典
           </Button>
           <Button
+            type='ghost'
+            style={{color: '#ccc'}}
             onClick={() => {
               addZone({
                 title: "卡片编辑器",
@@ -383,6 +390,8 @@ export const App = () => {
             卡片编辑器
           </Button>
           <Button
+            type='ghost'
+            style={{color: '#ccc'}}
             onClick={() => {
               addZone({
                 title: "遥控器",
@@ -398,6 +407,8 @@ export const App = () => {
             遥控器
           </Button>
           <Button
+            type='ghost'
+            style={{color: '#ccc'}}
             onClick={() => {
               setShowResourceLoader(true);
               setShowAddZone(false);
@@ -487,7 +498,7 @@ export const App = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingRight: '14px' }}>
           <div style={{ width: '420px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', }}>
             <Button
-              style={{ color: 'white', padding: '0 30px', height: '50px', fontSize: '25px' }}
+              style={{ color: '#ccc', padding: '0 30px', height: '50px', fontSize: '25px' }}
               type="text"
               onClick={() => {
                 setShowAddZone(true);
@@ -520,7 +531,7 @@ export const App = () => {
           <div>
             <Button
             type="text"
-            style={{color: '#fff'}}
+            style={{color: '#ccc'}}
             onClick={() => {
               const hide = message.loading('加载记录中...', 0);
               getRecords().then((records) => {
@@ -534,7 +545,11 @@ export const App = () => {
           {
             showRecordModal && <Modal 
               width="95%"
-              title="浏览记录"
+              bodyStyle={{
+                background: '#000'
+              }}
+              footer={null}
+              closable={false}              
               visible={showRecordModal}
               onCancel={() => {setShowRecordModal(false)}}
               onOk={() => {setShowRecordModal(false)}}
@@ -544,14 +559,14 @@ export const App = () => {
                   records.map(({file, timestamp, progress, type}) => {
                     const splits = file.split('/');
                     const title = splits[splits.length - 1];
-                    return <div key={file} style={{cursor: 'pointer', borderBottom: '1px solid #ccc', display: 'flex', justifyContent: 'space-between'}} onClick={() => {
+                    return <div key={file} style={{cursor: 'pointer', borderBottom: '1px solid #ccc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#ccc', marginBottom: '14px'}} onClick={() => {
                       if (type === 'video') {
                         playSubtitle$.next({...progress, file})
                       }
                       setShowRecordModal(false);
                     }}>
                       <div>{title}</div>
-                      {timestamp && <div>{new Date(timestamp).toLocaleDateString()}</div>}
+                      {timestamp && <div style={{marginLeft: '14px'}}>{new Date(timestamp).toLocaleDateString()}</div>}
                     </div>;
                   })
                 }

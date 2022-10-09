@@ -236,7 +236,7 @@ export const SubtitleComponent = ({
         >
           <Button
             style={{
-              color: "white",
+              color: "#ccc",
               fontSize: "20px",
               display: "flex",
               justifyContent: "center",
@@ -270,7 +270,7 @@ export const SubtitleComponent = ({
               onScrollToIndexChange(index);
             }}
             style={{
-              color: "white",
+              color: "#ccc",
               fontSize: "20px",
               display: "flex",
               justifyContent: "center",
@@ -282,7 +282,7 @@ export const SubtitleComponent = ({
 
           <Button
             style={{
-              color: "white",
+              color: "#ccc",
               fontSize: "20px",
               display: "flex",
               justifyContent: "center",
@@ -309,7 +309,7 @@ export const SubtitleComponent = ({
             <Button
               type="link"
               style={{
-                color: "white",
+                color: "#ccc",
                 fontSize: "20px",
                 display: "flex",
                 justifyContent: "center",
@@ -322,7 +322,7 @@ export const SubtitleComponent = ({
 
           <Button
             style={{
-              color: "white",
+              color: "#ccc",
               fontSize: "20px",
               display: "flex",
               justifyContent: "center",
@@ -370,7 +370,7 @@ export const SubtitleComponent = ({
                 addSubtitleInput$.next(addToCardSubtitle);
               }}
               style={{
-                color: "white",
+                color: "#ccc",
                 fontSize: "20px",
                 display: "flex",
                 justifyContent: "center",
@@ -406,7 +406,7 @@ export const SubtitleComponent = ({
                   textAlign: "center",
                   margin: "20px 14px",
                   fontSize: subtitleFontSize + 'px',
-                  color: scrollToIndex === index ? "#a976ec" : "white",
+                  color: scrollToIndex === index ? "#a976ec" : "#ccc",
                 }}
               >
                 {localSubtitles.map((s: string, subIndex: number) => {
@@ -602,14 +602,14 @@ export const SubtitleComponent = ({
         </div>
         <div style={{
           borderBottom: singleMode ? 'none' : "1px solid #c4bfbf",
-          color: "#fff",
+          color: "#ccc",
           display: singleMode ? 'flex' : 'none',
           alignItems: 'stretch',
           overflow: 'hidden',
           paddingBottom: '14px',
           height: '56px',
         }}>
-          {singleMode && index > 0 && <Button style={{height: '100%', flexGrow: 1, color: '#fff'}} type="ghost" onClick={() => {
+          {singleMode && index > 0 && <Button style={{height: '100%', flexGrow: 1, color: '#ccc'}} type="ghost" onClick={() => {
             const item = subtitles[index - 1];
             onPlayingChange(true);
             seekTo((item.start + 10) / 1000);
@@ -621,7 +621,7 @@ export const SubtitleComponent = ({
             <LeftOutlined />
           </Button>}
 
-          {singleMode && index < (subtitles.length - 1) && <Button style={{height: '100%', flexGrow: 1, color: '#fff'}} type="ghost" onClick={() => {
+          {singleMode && index < (subtitles.length - 1) && <Button style={{height: '100%', flexGrow: 1, color: '#ccc'}} type="ghost" onClick={() => {
             const item = subtitles[index + 1];
             onPlayingChange(true);
             seekTo((item.start + 10) / 1000);
@@ -654,7 +654,7 @@ export const SubtitleComponent = ({
       >
         <Button
           type="text"
-          style={{ color: "#fff" }}
+          style={{ color: "#ccc" }}
           onClick={() => {
             scrollTo(scrollToIndex, "auto");
           }}
@@ -752,13 +752,13 @@ export const SubtitleComponent = ({
           }
           placement="bottom"
         >
-          <Button type="text" style={{ color: "#fff" }}>
+          <Button type="text" style={{ color: "#ccc" }}>
             字幕合并
           </Button>
         </Dropdown>
         {fromZoneId && <Button
           type="text"
-          style={{ color: "#fff" }}
+          style={{ color: "#ccc" }}
           onClick={() => {
             console.log('openStandaloneSubtitle, title:', title);
             openStandaloneSubtitle$.next({
@@ -775,7 +775,7 @@ export const SubtitleComponent = ({
         </div>
         <Button
           type="text"
-          style={{ color: "#fff" }}
+          style={{ color: "#ccc" }}
           onClick={() => {
             setSubtitleFontSize(subtitleFontSize - 1);
           }}
@@ -784,7 +784,7 @@ export const SubtitleComponent = ({
         </Button>
         <Button
           type="text"
-          style={{ color: "#fff" }}
+          style={{ color: "#ccc" }}
           onClick={() => {
             setSubtitleFontSize(subtitleFontSize + 1);
           }}

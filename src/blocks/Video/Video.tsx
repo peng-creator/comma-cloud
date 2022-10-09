@@ -382,7 +382,7 @@ export const Video = ({
                   width: "15px",
                   height: "15px",
                   borderRadius: "50%",
-                  background: "#fff",
+                  background: "#ccc",
                 }}
               ></div>
             </div>
@@ -405,7 +405,7 @@ export const Video = ({
                   width: "15px",
                   height: "15px",
                   borderRadius: "50%",
-                  background: "#fff",
+                  background: "#ccc",
                 }}
               ></div>{" "}
             </div>

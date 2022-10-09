@@ -125,7 +125,7 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
     id: MENU_ID,
   });
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [color, setColor] = useState(localStorage.getItem('pdf-font-color') || "#fff");
+  const [color, setColor] = useState(localStorage.getItem('pdf-font-color') || "#ccc");
   const [backgroundColor, setBackgroundColor] = useState(localStorage.getItem('pdf-background-color') || "#000");
   const [colorEditing, setColorEditing] = useState(color);
   const [backgroundColorEditing, setBackgroundColorEditing] = useState(backgroundColor);
@@ -456,7 +456,7 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
         return containerRef.current || document.body;
       }}
       trigger={['click']}
-      overlay={      <div className="pdfHeader" style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', background:'#000', color: '#fff' }}>
+      overlay={      <div className="pdfHeader" style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', background:'#000', color: '#ccc' }}>
         <Button
           onClick={() => {
             const container = containerRef.current;
@@ -541,7 +541,7 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
           style={{
             width: `${placeholderWidth}px`,
             height: `${placeholderHeight}px`,
-            background: "white",
+            background: "#ccc",
           }}
           className="canvas-placeholder"
         ></div>

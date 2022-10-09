@@ -39,7 +39,7 @@
 
 body {
   position: relative;
-  color: white;
+  color: #ccc;
   height: 100vh;
   background: rgba(40, 40, 40);
   font-family: sans-serif;
@@ -92,13 +92,13 @@ body {
   height: 25px;
   line-height: 25px;
   padding: 0 10px;
-  background: #fff;
+  background: #ccc;
   cursor: pointer;
 }
 
 .word-right-click-menu-item:hover {
   background: rgb(169, 118, 236);
-  color: #fff;
+  color: #ccc;
 }
 
 .subtitle-container {
@@ -187,17 +187,17 @@ body {
 .pdfHeader .ant-pagination-item-link {
   background: none;
   border: none;
-  color: #fff;
+  color: #ccc;
 }
 .pdfHeader .ant-pagination-simple-pager {
-  color: #fff;
+  color: #ccc;
   font-size: 20px;
   position: relative;
   top: -4px;
 }
 
 .pdfHeader .ant-pagination-simple-pager>input {
-  color: #fff;
+  color: #ccc;
   background: none;
   text-align: right;
   margin: 0;

@@ -24,7 +24,7 @@ export const ResourceLoader = ({ visible, onClose, onOpenPDF, onOpenVideo }: {
       dir.slice(1);
     }
     const dirToOpen = currDir + '/' + dir;
-    loadDirChildren(dirToOpen).then(({dirs, videos, pdfs}) => {
+    loadDirChildren(dirToOpen).then(({ dirs, videos, pdfs }) => {
       setDirs(dirs);
       setPdfs(pdfs);
       setVideos(videos);
@@ -39,19 +39,30 @@ export const ResourceLoader = ({ visible, onClose, onOpenPDF, onOpenVideo }: {
     }
   }, [visible]);
 
-  
-  return <Modal title={<div><Button type='text' onClick={() => {
-    const dirs = currDir.split('/');
-    const toOpen = dirs.slice(0, dirs.length - 1).join('/');
-    console.log('toOpen:', toOpen);
-    if (toOpen === '' ) {
-      openFolder('', '');
-    } else {
-      const parentDir = dirs.slice(0, dirs.length - 2).join('/');
-      console.log('parentDir:', parentDir);
-      openFolder(parentDir, dirs[dirs.length - 2]);
-    }
-  }}> <LeftOutlined /> </Button>{dirname}</div>} visible={visible} footer={null} onCancel={onClose}>
+
+  return <Modal
+    bodyStyle={{
+      background: 'black',
+    }}
+    closable={false}
+    title={<div style={{ color: '#ccc', background: 'black', position: 'absolute', top: 0, left: 0, width: '100%', height: '54px', padding: '14px' }}>
+      <Button 
+      type='text' 
+      disabled={!dirname}
+      style={{color: '#ccc'}}
+      onClick={() => {
+        const dirs = currDir.split('/');
+        const toOpen = dirs.slice(0, dirs.length - 1).join('/');
+        console.log('toOpen:', toOpen);
+        if (toOpen === '') {
+          openFolder('', '');
+        } else {
+          const parentDir = dirs.slice(0, dirs.length - 2).join('/');
+          console.log('parentDir:', parentDir);
+          openFolder(parentDir, dirs[dirs.length - 2]);
+        }
+      }}> <LeftOutlined /> </Button>{dirname}</div>}
+    visible={visible} footer={null} onCancel={onClose}>
     {/* render dirs */}
     {dirs.length > 0 &&
       dirs.map((dir, index) => {
@@ -68,7 +79,7 @@ export const ResourceLoader = ({ visible, onClose, onOpenPDF, onOpenVideo }: {
             style={{
               display: 'flex',
               alignItems: 'center',
-              color: '#000',
+              color: '#ccc',
               cursor: 'pointer',
               marginTop: '10px',
             }}
@@ -80,65 +91,65 @@ export const ResourceLoader = ({ visible, onClose, onOpenPDF, onOpenVideo }: {
       })}
     {/* render pdfs */}
     <div style={{ flexGrow: 1 }}>
-        {pdfs.map((pdfFile, index) => {
-          const openPdf = () => {
-            const relativePath = currDir + '/' + pdfFile;
-            onOpenPDF(relativePath);
-          };
-          return (
-            <div
-              key={pdfFile}
-              style={{
-                color: 'black',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                marginTop: '10px',
-              }}
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  openPdf();
-                }
-              }}
-              onClick={openPdf}
-            >
-              <FilePdfFilled />
-              <div style={{ marginLeft: '14px' }}>{pdfFile}</div>
-            </div>
-          );
-        })}
-      </div>
+      {pdfs.map((pdfFile, index) => {
+        const openPdf = () => {
+          const relativePath = currDir + '/' + pdfFile;
+          onOpenPDF(relativePath);
+        };
+        return (
+          <div
+            key={pdfFile}
+            style={{
+              color: '#ccc',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              marginTop: '10px',
+            }}
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                openPdf();
+              }
+            }}
+            onClick={openPdf}
+          >
+            <FilePdfFilled />
+            <div style={{ marginLeft: '14px' }}>{pdfFile}</div>
+          </div>
+        );
+      })}
+    </div>
     {/* render videos */}
     <div style={{ flexGrow: 1 }}>
-        {videos.map((videoFile, index) => {
-          const openVideo = () => {
-            const filePath = currDir + '/' + videoFile;
-            onOpenVideo(filePath);
-          };
-          return (
-            <div
-              key={videoFile}
-              style={{
-                color: 'black',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                marginTop: '10px',
-              }}
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  openVideo();
-                }
-              }}
-              onClick={openVideo}
-            >
-              <VideoCameraFilled />
-              <div style={{ marginLeft: '14px' }}>{videoFile}</div>
-            </div>
-          );
-        })}
-      </div>
+      {videos.map((videoFile, index) => {
+        const openVideo = () => {
+          const filePath = currDir + '/' + videoFile;
+          onOpenVideo(filePath);
+        };
+        return (
+          <div
+            key={videoFile}
+            style={{
+              color: '#ccc',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              marginTop: '10px',
+            }}
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                openVideo();
+              }
+            }}
+            onClick={openVideo}
+          >
+            <VideoCameraFilled />
+            <div style={{ marginLeft: '14px' }}>{videoFile}</div>
+          </div>
+        );
+      })}
+    </div>
   </Modal>
 };

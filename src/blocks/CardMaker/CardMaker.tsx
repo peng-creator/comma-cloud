@@ -275,6 +275,7 @@ const Component = ({ layoutMode }: { layoutMode: number }) => {
             width: "100%",
             overflow: "hidden",
             flexDirection: "column",
+            ...(layoutMode === 0 ? {}: {marginTop: '14px'} )
           }}
         >
           <div
@@ -302,8 +303,8 @@ const Component = ({ layoutMode }: { layoutMode: number }) => {
                   <Button
                     type="text"
                     style={{
-                      color: selected ? "#138bff" : "white",
-                      background: selected ? "rgb(72, 72, 72)" : "none",
+                      color: selected ? "#138bff" : "#ccc",
+                      background: selected ? "#484d56" : "none",
                       borderRadius: "5px 5px 0 0",
                     }}
                     onClick={() => {
@@ -331,7 +332,7 @@ const Component = ({ layoutMode }: { layoutMode: number }) => {
                   flexGrow: 1,
                   height: '70%',
                   maxHeight: 'calc(100% - 200px)',
-                  backgroundColor: "rgb(72, 72, 72)",
+                  backgroundColor: "#484d56",
                   overflow: "hidden",
                   display: "flex",
                   flexDirection: "column",
@@ -489,7 +490,7 @@ const Component = ({ layoutMode }: { layoutMode: number }) => {
                   height: "30%",
                   maxHeight: '200px',
                   flexGrow: 1,
-                  backgroundColor: "rgb(62, 62, 62)",
+                  backgroundColor: "#484d56",
                   display: "flex",
                   flexDirection: "column",
                   padding: "14px",
@@ -497,7 +498,7 @@ const Component = ({ layoutMode }: { layoutMode: number }) => {
               >
                 <div>解释：</div>
                 {copiedText.trim() && <div style={{ margin: '14px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-                  <span style={{ marginRight: '14px' }}>{copiedText}</span><Button type="ghost" style={{ color: '#fff' }} onClick={() => {
+                  <span style={{ marginRight: '14px' }}>{copiedText}</span><Button type="ghost" style={{ color: '#ccc' }} onClick={() => {
                     currentCard.back += `\n${copiedText}`;
                     currentCard.clean = false;
                     setFlashCards([...flashCards]);
@@ -521,7 +522,7 @@ const Component = ({ layoutMode }: { layoutMode: number }) => {
                     flexGrow: 1,
                     resize: "none",
                     background: "none",
-                    color: "white",
+                    color: "#ccc",
                     outline: "none",
                   }}
                   onFocus={async () => {
