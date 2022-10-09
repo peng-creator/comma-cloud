@@ -445,6 +445,12 @@ body {
   background-color: rgb(164, 175, 178) !important;
 }
 
+.fullScreenZone {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  z-index: 5;
+}
 
 .mosaic.mosaic-blueprint-theme.bp3-dark .mosaic-window-toolbar, 
 .mosaic.mosaic-blueprint-theme.bp3-dark .mosaic-window-additional-actions-bar {
@@ -460,7 +466,7 @@ body {
  }
 
 .mosaic-tile {
-  margin: 10px;
+  margin: 5px;
 }
 
 .mosaic-split.-row {
@@ -470,7 +476,7 @@ body {
 }
 
 .mosaic-split.-column {
-  margin-top: -15px;
+  margin-top: -25px;
   height: 35px;
   z-index: 5;
 }

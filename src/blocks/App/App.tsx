@@ -105,7 +105,8 @@ export const App = () => {
   const [inputSearchValue, setInputSearchValue] = useState("");
   const searchBoxRef: any = useRef<any>();
   const [showRecordModal, setShowRecordModal] = useState(false);
-  const [records, setRecords] = useState([] as Record[])
+  const [records, setRecords] = useState([] as Record[]);
+  const [fullScreenZoneId, setFullScreenZoneId] = useState('');
 
   const saveWorkZones = (currentNode: MosaicNode<string> | null, zones: ZoneDefinition[]) => {
     console.log('currentNode: ', currentNode);
@@ -362,6 +363,7 @@ export const App = () => {
               addZone({
                 title: "词典",
                 type: "dict",
+                multiLayout: false,
                 data: {
                   name: "有道",
                   template: "https://mobile.youdao.com/dict?le=eng&q={}",
@@ -474,6 +476,7 @@ export const App = () => {
                 return null;
               }
               return (<MosaicWindowNumber
+                className={fullScreenZoneId === zone.id ? 'fullScreenZone' : ''}
                 onDragStart={() => {
                   dragWindowStart$.next(true);
                 }}
@@ -481,10 +484,19 @@ export const App = () => {
                   dragWindowEnd$.next(true);
                 }}
                 toolbarControls={React.Children.toArray([
-                  <Button type="text" onClick={() => {
+                  zone.multiLayout === false ? null : <Button type="text" onClick={() => {
                     toggleLayout$.next(id);
                   }}>
                     <Icon style={{ position: 'relative', top: '-1px' }} icon="control" size={18} color="#5f6b7c" /></Button>,
+                  <Button type="text" style={{marginRight: '12px'}} onClick={() => {
+                    if (fullScreenZoneId) {
+                      setFullScreenZoneId('');
+                    } else {
+                      setFullScreenZoneId(zone.id);
+                    }
+                  }}>
+                    <Icon style={{ position: 'relative', top: '-1px' }} icon={zone.id === fullScreenZoneId ? "duplicate" : "square" } size={18} color="#5f6b7c" />
+                  </Button>,
                   <div style={{transform: 'scale(1.4)',  position: 'relative', left: '-2px'}}>
                     <RemoveButton onClick={() => {
                       removeZone(zone);

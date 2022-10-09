@@ -606,10 +606,9 @@ export const SubtitleComponent = ({
           display: singleMode ? 'flex' : 'none',
           alignItems: 'stretch',
           overflow: 'hidden',
-          paddingBottom: '14px',
-          height: '56px',
+          height: '40px',
         }}>
-          {singleMode && index > 0 && <Button style={{height: '100%', flexGrow: 1, color: '#ccc'}} type="ghost" onClick={() => {
+          <Button disabled={index <= 0} style={{height: '100%', flexGrow: 1, color: '#ccc'}} type="ghost" onClick={() => {
             const item = subtitles[index - 1];
             onPlayingChange(true);
             seekTo((item.start + 10) / 1000);
@@ -619,9 +618,9 @@ export const SubtitleComponent = ({
             onScrollToIndexChange(index - 1);
           }}>
             <LeftOutlined />
-          </Button>}
+          </Button>
 
-          {singleMode && index < (subtitles.length - 1) && <Button style={{height: '100%', flexGrow: 1, color: '#ccc'}} type="ghost" onClick={() => {
+          <Button disabled={index >= (subtitles.length - 1)} style={{height: '100%', flexGrow: 1, color: '#ccc'}} type="ghost" onClick={() => {
             const item = subtitles[index + 1];
             onPlayingChange(true);
             seekTo((item.start + 10) / 1000);
@@ -631,7 +630,7 @@ export const SubtitleComponent = ({
             onScrollToIndexChange(index + 1);
           }}>
             <RightOutlined />
-          </Button>}
+          </Button>
         </div>
       </div>
     );
