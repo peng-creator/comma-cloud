@@ -554,7 +554,7 @@ export const App = () => {
           />
         </div>
 
-        <div style={{minWidth: '134px'}}>
+        <div style={{minWidth: '134px', display: 'flex',}}>
           <Button
             type="text"
             style={{ color: '#ccc' }}
