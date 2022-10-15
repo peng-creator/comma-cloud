@@ -263,16 +263,25 @@ export const App = () => {
 
   useEffect(() => {
     const recoverWorkZone = () => {
-      let serializedWindowTree = localStorage.getItem('serializedWindowTree') || 'null';
-      let serializedZones = localStorage.getItem('serializedZones') || '[]';
+      let serializedWindowTree = localStorage.getItem('serializedWindowTree') || '';
+      let serializedZones = localStorage.getItem('serializedZones') || '';
       console.log('serializedWindowTree:', serializedWindowTree);
       console.log('serializedZones:', serializedZones);
-      let zones: any = [];
+      let zones: ZoneDefinition[] = [{
+        "title":"词典",
+        "type":"dict",
+        "multiLayout":false,
+        "data":{
+          "name":"有道",
+          "template":"https://mobile.youdao.com/dict?le=eng&q={}"
+        },
+        "id":"7ad47632-83f7-428a-98b4-51e402fab185"
+      }];
       let currentNode = null;
       try {
         currentNode = JSON.parse(serializedWindowTree);
       } catch (e) {
-        currentNode = serializedWindowTree;
+        currentNode = '7ad47632-83f7-428a-98b4-51e402fab185';
       }
       try {
         zones = JSON.parse(serializedZones);
@@ -335,106 +344,6 @@ export const App = () => {
           setShowResourceLoader(false);
         }}
       ></ResourceLoader>
-      <Drawer
-        title={null}
-        placement="top"
-        closable={false}
-        onClose={() => {
-          setShowAddZone(false);
-        }}
-        visible={showAddZone}
-        height={200}
-        bodyStyle={{
-          background: 'black'
-        }}
-      >
-        <div
-          style={{
-            width: "100%",
-            height: "100%",
-            display: "flex",
-            justifyContent: "space-around",
-            alignItems: "center",
-            flexWrap: 'wrap',
-          }}
-        >
-          <Button
-            type='ghost'
-            style={{ color: '#ccc' }}
-            onClick={() => {
-              addZone({
-                title: "词典",
-                type: "dict",
-                multiLayout: false,
-                data: {
-                  name: "有道",
-                  template: "https://mobile.youdao.com/dict?le=eng&q={}",
-                },
-              },);
-              setShowAddZone(false);
-            }}
-          >
-            词典
-          </Button>
-          <Button
-            type='ghost'
-            style={{ color: '#ccc' }}
-            onClick={() => {
-              addZone({
-                title: "卡片编辑器",
-                type: "cardMaker",
-                data: {
-                },
-              },);
-              setShowAddZone(false);
-            }}
-          >
-            卡片编辑器
-          </Button>
-          <Button
-            type='ghost'
-            style={{ color: '#ccc' }}
-            onClick={() => {
-              addZone({
-                title: "卡片复习器",
-                type: "cardReviewer",
-                data: {
-                },
-              },);
-              setShowAddZone(false);
-            }}
-          >
-            卡片复习器
-          </Button>
-          <Button
-            type='ghost'
-            style={{ color: '#ccc' }}
-            onClick={() => {
-              addZone({
-                title: "遥控器",
-                type: "remoteController",
-                data: {
-                  // name: "有道",
-                  // template: "http://mobile.youdao.com/dict?le=eng&q={}",
-                },
-              },);
-              setShowAddZone(false);
-            }}
-          >
-            遥控器
-          </Button>
-          <Button
-            type='ghost'
-            style={{ color: '#ccc' }}
-            onClick={() => {
-              setShowResourceLoader(true);
-              setShowAddZone(false);
-            }}
-          >
-            文件
-          </Button>
-        </div>
-      </Drawer>
       <ContextMenu
         id="MENU_ID"
         animation={false}
@@ -461,7 +370,7 @@ export const App = () => {
         })}
       </ContextMenu>
 
-      <div style={{ height: showBottomBar ? 'calc(100% - 50px)' : '100%' }}>
+      <div style={{ height: '100%' }}>
         <MosaicNumber
           blueprintNamespace="bp4"
           className={THEMES['Blueprint Dark']}
@@ -521,14 +430,21 @@ export const App = () => {
           }}
         />
       </div>
-      <div style={{ display: showBottomBar ? 'flex' : 'none', justifyContent: 'space-between', alignItems: 'center', paddingRight: '14px' }}>
-        <div style={{ width: '420px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', }}>
-          <Button
-            style={{ color: '#ccc', padding: '0 30px', height: '50px', fontSize: '25px' }}
-            type="text"
-            onClick={() => {
-              setShowAddZone(true);
-            }}><AppstoreOutlined /></Button>
+      <div style={{
+        width: 'calc(100% - 28px)',
+        background: '#000',
+        display: showBottomBar ? 'flex' : 'none',
+        flexDirection: 'column',
+        alignItems: 'center',
+        position: 'absolute',
+        minWidth: '320px',
+        padding: '14px 0 5px',
+        bottom: 0,
+        zIndex: 4,
+        borderRadius: '12px 12px 0 0',
+        margin: '0 14px',
+      }}>
+        <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', }}>
           <Input
             prefix={<SearchOutlined />}
             ref={searchBoxRef}
@@ -541,8 +457,8 @@ export const App = () => {
               color: "rgb(100, 100, 100)",
               fontSize: "24px",
               flexGrow: 1,
-              maxWidth: '300px',
-              height: '30px'
+              height: '30px',
+              marginLeft: '32px',
             }}
             onKeyDown={(e) => {
               const key = e.key.toLowerCase();
@@ -550,23 +466,8 @@ export const App = () => {
                 searchSentence(inputSearchValue);
               }
             }}
-            placeholder="搜索"
+            placeholder="搜索单词、句子"
           />
-        </div>
-
-        <div style={{minWidth: '134px', display: 'flex',}}>
-          <Button
-            type="text"
-            style={{ color: '#ccc' }}
-            onClick={() => {
-              const hide = message.loading('加载记录中...', 0);
-              getRecords().then((records) => {
-                setRecords(records);
-                setShowRecordModal(true);
-              }).finally(() => {
-                hide();
-              });
-            }}>浏览记录</Button>
           <Button
             type="text"
             style={{
@@ -578,6 +479,98 @@ export const App = () => {
           >
             <DownOutlined />
           </Button>
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', maxWidth: '720px', marginTop: '40px', marginBottom: '10px' }}>
+          <div style={{width: '0.5%'}}></div>
+          <Button
+            type='ghost'
+            style={{ color: '#ccc', width: '33%', height: '40px' }}
+            onClick={() => {
+              setShowResourceLoader(true);
+              setShowAddZone(false);
+            }}
+          >
+            文件
+          </Button>
+          <Button
+            type='ghost'
+            style={{ color: '#ccc', width: '33%', height: '40px'}}
+            onClick={() => {
+              addZone({
+                title: "词典",
+                type: "dict",
+                multiLayout: false,
+                data: {
+                  name: "有道",
+                  template: "https://mobile.youdao.com/dict?le=eng&q={}",
+                },
+              },);
+              setShowAddZone(false);
+            }}
+          >
+            词典
+          </Button>
+          <Button
+            type='ghost'
+            style={{ color: '#ccc', width: '33%', height: '40px' }}
+            onClick={() => {
+              addZone({
+                title: "卡片",
+                type: "cardMaker",
+                data: {
+                },
+              },);
+              setShowAddZone(false);
+            }}
+          >
+            卡片
+          </Button>
+          <div style={{width: '0.5%'}}></div>
+          <div style={{width: '0.5%'}}></div>
+          <Button
+            type='ghost'
+            style={{ color: '#ccc', width: '33%', height: '40px' }}
+            onClick={() => {
+              addZone({
+                title: "复习",
+                type: "cardReviewer",
+                data: {
+                },
+              },);
+              setShowAddZone(false);
+            }}
+          >
+            复习
+          </Button>
+          <Button
+            type='ghost'
+            style={{ color: '#ccc', width: '33%', height: '40px' }}
+            onClick={() => {
+              addZone({
+                title: "遥控器",
+                type: "remoteController",
+                data: {
+                  // name: "有道",
+                  // template: "http://mobile.youdao.com/dict?le=eng&q={}",
+                },
+              },);
+              setShowAddZone(false);
+            }}
+          >
+            遥控器
+          </Button>
+          <Button
+            type="ghost"
+            style={{ color: '#ccc', width: '33%', height: '40px' }}
+            onClick={() => {
+              const hide = message.loading('加载记录中...', 0);
+              getRecords().then((records) => {
+                setRecords(records);
+                setShowRecordModal(true);
+              }).finally(() => {
+                hide();
+              });
+            }}>浏览记录</Button>
         </div>
         {
           showRecordModal && <Modal
@@ -602,7 +595,7 @@ export const App = () => {
                     }
                     setShowRecordModal(false);
                   }}>
-                    <div style={{maxWidth: 'calc(100% - 30px)', overflow: 'auto'}}>
+                    <div style={{ maxWidth: 'calc(100% - 30px)', overflow: 'auto' }}>
                       <div>{title}</div>
                     </div>
                     {timestamp && <div style={{ marginLeft: '14px' }}>{new Date(timestamp).toLocaleDateString()}</div>}
@@ -618,8 +611,13 @@ export const App = () => {
         onClick={() => {
           setShowBottomBar(true);
         }}
-        style={{ position: 'absolute', bottom: '14px', right: '14px', zIndex: 4, color: '#ccc', fontSize: '20px' }}>
-        <UpCircleOutlined />
+        style={{ position: 'absolute', bottom: '14px', right: '14px', zIndex: 4, color: '#ccc', fontSize: '32px', background: '#000', width: '40px', height: '40px',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: '50%',
+        }}>
+        <UpCircleOutlined style={{position: 'relative', top: '1px'}}/>
       </Button>}
     </div>
   );

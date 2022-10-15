@@ -161,7 +161,7 @@ const Component = ({ layoutMode }: { layoutMode: number }) => {
         height: "100%",
         overflow: "auto",
         position: "relative",
-        minWidth: '396px',
+        minWidth: '300px',
       }}
     >
       <div style={{ width: layoutMode === 0 ? '300px' : '100%', height: layoutMode === 0 ? '100%' : '200px', flexGrow: 1 }}>
@@ -322,16 +322,13 @@ const Component = ({ layoutMode }: { layoutMode: number }) => {
                 height: "calc(100% - 30px)",
                 width: "100%",
                 overflowY: "hidden",
-                display: 'flex',
-                flexDirection: 'column',
+                // display: 'flex',
+                // flexDirection: 'column',
               }}
             >
               <div
                 style={{
-                  flexGrow: 1,
                   height: '70%',
-                  maxHeight: 'calc(100% - 200px)',
-                  minHeight: '100px',
                   backgroundColor: "#484d56",
                   overflow: "hidden",
                   display: "flex",
@@ -488,8 +485,6 @@ const Component = ({ layoutMode }: { layoutMode: number }) => {
               <div
                 style={{
                   height: "30%",
-                  maxHeight: '200px',
-                  flexGrow: 1,
                   backgroundColor: "#484d56",
                   display: "flex",
                   flexDirection: "column",

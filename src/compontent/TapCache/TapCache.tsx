@@ -18,7 +18,7 @@ export const TapCache = () => {
         left: 0,
         width: "100%",
         justifyContent: "center",
-        zIndex: 5,
+        zIndex: 6,
         alignItems: "center",
       }}
     >
