@@ -9,10 +9,13 @@ export type StandaloneSubtitleProps = {
   isPlaying$: BehaviorSubject<boolean>;
   loopingSubtitle$: BehaviorSubject<Subtitle | null>;
   scrollToIndex$: BehaviorSubject<number>;
+  intensive$: BehaviorSubject<boolean>;
+  insiveStrategyIndex$: BehaviorSubject<number>;
   onSubtitlesChange: (nextSubtitles: Subtitle[]) => void;
   onScrollToIndexChange: (nextScrollToIndex: number) => void;
   onLoopingSubtitleChange: (subtitle: Subtitle | null) => void;
   onPlayingChange: (playing: boolean) => void;
+  onIntensiveChange: (intensive: boolean) => void;
 };
 
 export type FetchStandalonePropsAction = {

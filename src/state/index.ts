@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { BehaviorSubject, Observable, Subject } from 'rxjs';
+import { useCallback, useEffect, useState } from 'react';
+import { BehaviorSubject, debounceTime, Observable, Subject } from 'rxjs';
 
 export const useObservable = <T, S extends Observable<T>>(
   source: S,
@@ -31,4 +31,11 @@ export const useBehavior = <T>(
   initailValue: T
 ) => {
   return useSubject(behaviorSubject, initailValue);
+};
+
+export const useDebouncedEffect = (onEffect: () => void, deps: any[] = []) => {
+  useEffect(() => {
+    const timer = setTimeout(() => onEffect(), 1);
+    return () => clearTimeout(timer);
+  }, deps);
 };

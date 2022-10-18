@@ -85,7 +85,7 @@ export const ResourceLoader = ({ visible, onClose, onOpenPDF, onOpenVideo }: {
             }}
           >
             <FolderOutlined />
-            <div style={{ marginLeft: '14px' }}>{dir}</div>
+            <div style={{ marginLeft: '14px', wordBreak: 'break-all' }}>{dir}</div>
           </div>
         );
       })}
@@ -115,7 +115,7 @@ export const ResourceLoader = ({ visible, onClose, onOpenPDF, onOpenVideo }: {
             onClick={openPdf}
           >
             <FilePdfFilled />
-            <div style={{ marginLeft: '14px' }}>{pdfFile}</div>
+            <div style={{ marginLeft: '14px', wordBreak: 'break-all' }}>{pdfFile}</div>
           </div>
         );
       })}
@@ -146,7 +146,7 @@ export const ResourceLoader = ({ visible, onClose, onOpenPDF, onOpenVideo }: {
             onClick={openVideo}
           >
             <VideoCameraFilled />
-            <div style={{ marginLeft: '14px' }}>{videoFile}</div>
+            <div style={{ marginLeft: '14px', wordBreak: 'break-all' }}>{videoFile}</div>
           </div>
         );
       })}

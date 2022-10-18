@@ -31,7 +31,7 @@ import "@blueprintjs/icons/lib/css/blueprint-icons.css";
 import { dropRight } from "lodash";
 import { Zone } from "../Zone/Zone";
 import { dragWindowEnd$, dragWindowStart$, isDraggingSplitBar$, toggleLayout$ } from "../../state/zone";
-import { AppstoreOutlined, SearchOutlined, ArrowsAltOutlined, ShrinkOutlined, DownOutlined, UpCircleOutlined } from "@ant-design/icons";
+import { AppstoreOutlined, SearchOutlined, ArrowsAltOutlined, ShrinkOutlined, DownOutlined, UpCircleOutlined, UpOutlined } from "@ant-design/icons";
 import { search$, searchSentence } from "../../state/search";
 import { TapCache } from "../../compontent/TapCache/TapCache";
 import { StatusBar, Style } from '@capacitor/status-bar';
@@ -405,7 +405,7 @@ export const App = () => {
                     setFullScreenZoneId(zone.id);
                   }
                 }}>
-                  <Icon style={{ position: 'relative', top: '-1px' }} icon={zone.id === fullScreenZoneId ? "duplicate" : "square"} size={18} color="#5f6b7c" />
+                  <Icon style={{ position: 'relative', top: '-1px' }} icon={zone.id === fullScreenZoneId ? "minimize" : "maximize"} size={18} color="#5f6b7c" />
                 </Button>,
                 <div style={{ transform: 'scale(1.4)', position: 'relative', left: '-2px' }}>
                   <RemoveButton onClick={() => {
@@ -611,13 +611,13 @@ export const App = () => {
         onClick={() => {
           setShowBottomBar(true);
         }}
-        style={{ position: 'absolute', bottom: '14px', right: '14px', zIndex: 4, color: '#ccc', fontSize: '32px', background: '#000', width: '40px', height: '40px',
+        style={{ position: 'absolute', bottom: '14px', right: '14px', zIndex: 4, color: '#ccc', background: '#000', width: '40px', height: '40px',
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
         borderRadius: '50%',
         }}>
-        <UpCircleOutlined style={{position: 'relative', top: '1px'}}/>
+        <UpOutlined style={{position: 'relative', top: '2px'}}/>
       </Button>}
     </div>
   );

@@ -30,8 +30,10 @@ export const RemoteController = ({
   const [subtitles$, setSubtitles$] = useState(new BehaviorSubject<Subtitle[]>([]));
   const [loopingSubtitle$, setLoopingSubtitle$] = useState(new BehaviorSubject<Subtitle | null>(null));
   const [scrollToIndex$, setScrollToIndex$] = useState(new BehaviorSubject<number>(-1));
+  const [intensive$] = useState(new BehaviorSubject(true));
+  const [insiveStrategyIndex$] = useState(new BehaviorSubject(0));
   const [isPlaying$] = useState(new BehaviorSubject(false));
-
+  
   useEffect(() => {
     if (!zone) {
       return;
@@ -61,10 +63,16 @@ export const RemoteController = ({
         if (action === 'playingChange') {
           isPlaying$.next(data.playing);
         }
+        if (action === 'intensiveChange') {
+          intensive$.next(data.intensive);
+        }
+        if (action === 'insiveStrategyIndexChange') {
+          insiveStrategyIndex$.next(data.insiveStrategyIndex);
+        }
       },
     });
     return () => sp.unsubscribe();
-  }, [loopingSubtitle$, isPlaying$, scrollToIndex$, subtitles$, zone]);
+  }, [loopingSubtitle$, isPlaying$, scrollToIndex$, subtitles$, intensive$, insiveStrategyIndex$, zone]);
 
   return <div
     style={{
@@ -135,6 +143,8 @@ export const RemoteController = ({
         }}
         isPlaying$={isPlaying$}
         loopingSubtitle$={loopingSubtitle$}
+        intensive$={intensive$}
+        insiveStrategyIndex$={insiveStrategyIndex$}
         scrollToIndex$={scrollToIndex$}
         onSubtitlesChange={(nextSubtitles: Subtitle[]) => {
           remoteControlInput$.next({
@@ -174,6 +184,16 @@ export const RemoteController = ({
             }
           });
           isPlaying$.next(playing);
+        }}
+        onIntensiveChange={(intensive: boolean) => {
+          remoteControlInput$.next({
+            toZoneId: zone.id,
+            action: 'intensiveChange',
+            data: {
+              intensive,
+            }
+          });
+          intensive$.next(intensive);
         }}
       ></SubtitleComponent>
     }

@@ -23,6 +23,8 @@ import { addSubtitle$ } from "../CardMaker/CardMaker";
 import { BehaviorSubject } from "rxjs";
 import { useBehavior } from "../../state";
 import { addSubtitleInput$, fetchStandaloneProps$, openStandaloneSubtitle$, standaloneSubtitleProps$, subtitleReadyToFeedStandaloneProps$ } from "../../state/subtitle";
+import { defaultIntensiveStrategy } from "../../type/SubtitlePlayStrategy";
+import { Icon } from "@blueprintjs/core";
 
 export const SubtitleComponent = ({
   title,
@@ -32,10 +34,13 @@ export const SubtitleComponent = ({
   loopingSubtitle$,
   isPlaying$,
   scrollToIndex$,
+  intensive$,
+  insiveStrategyIndex$,
   onSubtitlesChange,
   onScrollToIndexChange,
   onLoopingSubtitleChange,
   onPlayingChange,
+  onIntensiveChange,
   fromZoneId,
   layoutMode,
 }: {
@@ -48,10 +53,13 @@ export const SubtitleComponent = ({
   isPlaying$: BehaviorSubject<boolean>;
   loopingSubtitle$: BehaviorSubject<Subtitle | null>;
   scrollToIndex$: BehaviorSubject<number>;
+  intensive$: BehaviorSubject<boolean>;
+  insiveStrategyIndex$: BehaviorSubject<number>;
   onSubtitlesChange: (nextSubtitles: Subtitle[]) => void;
   onScrollToIndexChange: (nextScrollToIndex: number) => void;
   onLoopingSubtitleChange: (subtitle: Subtitle | null) => void;
   onPlayingChange: (playing: boolean) => void;
+  onIntensiveChange: (intensive: boolean) => void;
   layoutMode: number;
 }) => {
   console.log('entering SubtitleComponent, title:', title);
@@ -59,6 +67,10 @@ export const SubtitleComponent = ({
   const [_loopingSubtitle] = useBehavior(loopingSubtitle$, null);
   const [isPlaying] = useBehavior(isPlaying$, false);
   const [scrollToIndex] = useBehavior(scrollToIndex$, -1);
+  const [intensive] = useBehavior(intensive$, true);
+  const [insiveStrategyIndex] = useBehavior(insiveStrategyIndex$, 0);
+  const playHow = defaultIntensiveStrategy[insiveStrategyIndex];
+
   const subtitles = _subtitles || [];
   const loopingSubtitle = _loopingSubtitle !== null ? subtitles.find(({start, end, subtitles}) => {
     return start === _loopingSubtitle.start && end === _loopingSubtitle.end && subtitles[0] === _loopingSubtitle.subtitles[0];
@@ -102,10 +114,13 @@ export const SubtitleComponent = ({
             loopingSubtitle$,
             isPlaying$,
             scrollToIndex$,
+            intensive$,
+            insiveStrategyIndex$,
             onSubtitlesChange,
             onScrollToIndexChange,
             onLoopingSubtitleChange,
             onPlayingChange,
+            onIntensiveChange,
           })
         }
       }
@@ -247,7 +262,9 @@ export const SubtitleComponent = ({
                 onPlayingChange(false);
                 return;
               }
-              onScrollToIndexChange(index);
+              if (index !== scrollToIndex) {
+                onScrollToIndexChange(index);
+              }
               if (index !== scrollToIndex) {
                 playFromStart(subtitles, index);
               }
@@ -483,6 +500,11 @@ export const SubtitleComponent = ({
                 })}
               </div>
             </div>
+            {intensive && playHow?.showSubtitle === false && <div style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', padding: '14px 14px 0', }}>
+              <div style={{ background: '#000', width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', borderRadius: '20px'}}>
+                精听循环第{insiveStrategyIndex + 1}遍，{playHow.speed} 倍速播放
+              </div>
+            </div>} 
           </div>
           <div
             style={{
@@ -645,21 +667,13 @@ export const SubtitleComponent = ({
       <div
         style={{
           width: "100%",
+          padding: '5px 0',
           display: layoutMode === 0 ? 'flex' : 'none',
           justifyContent: "center",
           background: "black",
           flexWrap: 'wrap',
         }}
       >
-        <Button
-          type="text"
-          style={{ color: "#ccc" }}
-          onClick={() => {
-            scrollTo(scrollToIndex, "auto");
-          }}
-        >
-          定位当前字幕
-        </Button>
         <Dropdown
           trigger={["click"]}
           overlay={
@@ -751,27 +765,43 @@ export const SubtitleComponent = ({
           }
           placement="bottom"
         >
-          <Button type="text" style={{ color: "#ccc" }}>
-            字幕合并
+          <Button type="text" style={{ color: "#ccc", fontSize: '18px' }}>
+            <MergeCellsOutlined
+                style={{
+                  position: "relative",
+                  bottom: "4px",
+                  transform: "rotate(90deg)",
+                }}
+              />
           </Button>
         </Dropdown>
-        {fromZoneId && <Button
+        <Button
+          type="text"
+          style={{ background: singleMode ? 'none' : 'rgb(169, 118, 236)' }}
+          onClick={() => {
+            setSingleMode(!singleMode);
+          }}
+        >
+          <Icon icon="list" size={18} color="#ccc" />
+        </Button>
+        {!singleMode && <Button
           type="text"
           style={{ color: "#ccc" }}
           onClick={() => {
-            console.log('openStandaloneSubtitle, title:', title);
-            openStandaloneSubtitle$.next({
-              title,
-              filePath,
-              fromZoneId,
-            });
+            scrollTo(scrollToIndex, "auto");
           }}
         >
-          在新窗口中打开字幕
+          <Icon icon="locate" size={18} color="#ccc" />
         </Button>}
-        <div style={{display: 'flex', alignItems: 'center'}}>
-          <div>单句模式：</div><Switch defaultChecked checked={singleMode} onChange={(value) => setSingleMode(value)}></Switch>
-        </div>
+        <Button
+          type="text"
+          style={{ background: intensive ? 'rgb(169, 118, 236)' : 'none' }}
+          onClick={() => {
+            onIntensiveChange(!intensive)
+          }}
+        >
+          <Icon icon="lightning" size={18} color="#ccc" />
+        </Button>
         <Button
           type="text"
           style={{ color: "#ccc" }}
@@ -790,6 +820,20 @@ export const SubtitleComponent = ({
         >
           <FontSizeOutlined /> +
         </Button>
+        {fromZoneId && <Button
+          type="text"
+          style={{ color: "#ccc" }}
+          onClick={() => {
+            console.log('openStandaloneSubtitle, title:', title);
+            openStandaloneSubtitle$.next({
+              title,
+              filePath,
+              fromZoneId,
+            });
+          }}
+        >
+          <Icon icon="duplicate" size={18} color="#ccc" />
+        </Button>}
       </div>
       {!singleMode && <Virtuoso
         style={{ flexGrow: 1, overflowX: 'hidden' }}
