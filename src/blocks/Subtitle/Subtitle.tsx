@@ -1,6 +1,11 @@
 import { Button, Dropdown, Menu, Popconfirm, Switch, Tooltip } from "antd";
-import React, { CSSProperties, useCallback, useEffect, useRef, useState } from "react";
-import ReactPlayer from "react-player";
+import React, {
+  CSSProperties,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { Subtitle } from "../../type/Subtitle";
 import {
   FileAddOutlined,
@@ -22,7 +27,13 @@ import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 import { addSubtitle$ } from "../CardMaker/CardMaker";
 import { BehaviorSubject } from "rxjs";
 import { useBehavior } from "../../state";
-import { addSubtitleInput$, fetchStandaloneProps$, openStandaloneSubtitle$, standaloneSubtitleProps$, subtitleReadyToFeedStandaloneProps$ } from "../../state/subtitle";
+import {
+  addSubtitleInput$,
+  fetchStandaloneProps$,
+  openStandaloneSubtitle$,
+  standaloneSubtitleProps$,
+  subtitleReadyToFeedStandaloneProps$,
+} from "../../state/subtitle";
 import { defaultIntensiveStrategy } from "../../type/SubtitlePlayStrategy";
 import { Icon } from "@blueprintjs/core";
 
@@ -62,7 +73,7 @@ export const SubtitleComponent = ({
   onIntensiveChange: (intensive: boolean) => void;
   layoutMode: number;
 }) => {
-  console.log('entering SubtitleComponent, title:', title);
+  console.log("entering SubtitleComponent, title:", title);
   const [_subtitles] = useBehavior(subtitles$, []);
   const [_loopingSubtitle] = useBehavior(loopingSubtitle$, null);
   const [isPlaying] = useBehavior(isPlaying$, false);
@@ -72,9 +83,16 @@ export const SubtitleComponent = ({
   const playHow = defaultIntensiveStrategy[insiveStrategyIndex];
 
   const subtitles = _subtitles || [];
-  const loopingSubtitle = _loopingSubtitle !== null ? subtitles.find(({start, end, subtitles}) => {
-    return start === _loopingSubtitle.start && end === _loopingSubtitle.end && subtitles[0] === _loopingSubtitle.subtitles[0];
-  }) : null;
+  const loopingSubtitle =
+    _loopingSubtitle !== null
+      ? subtitles.find(({ start, end, subtitles }) => {
+          return (
+            start === _loopingSubtitle.start &&
+            end === _loopingSubtitle.end &&
+            subtitles[0] === _loopingSubtitle.subtitles[0]
+          );
+        })
+      : null;
   const virtuoso = useRef<VirtuosoHandle | null>(null);
   const scrollTo = useCallback(
     (index: number, behavior: "smooth" | "auto" = "smooth") => {
@@ -90,7 +108,7 @@ export const SubtitleComponent = ({
   );
 
   useEffect(() => {
-    scrollTo(scrollToIndex, 'smooth');
+    scrollTo(scrollToIndex, "smooth");
   }, [virtuoso, scrollToIndex, scrollTo]);
 
   const [singleMode, setSingleMode] = useState(true);
@@ -101,10 +119,10 @@ export const SubtitleComponent = ({
       return;
     }
     const sp = fetchStandaloneProps$.subscribe({
-      next({fromZoneId: _fromZoneId}) {
-        console.log('receive fetchStandaloneProps');
-        if (fromZoneId === fromZoneId) {
-          console.log('sending standaloneSubtitleProps');
+      next({ fromZoneId: _fromZoneId }) {
+        console.log("receive fetchStandaloneProps");
+        if (fromZoneId === _fromZoneId) {
+          console.log("sending standaloneSubtitleProps");
           standaloneSubtitleProps$.next({
             fromZoneId,
             title,
@@ -121,15 +139,16 @@ export const SubtitleComponent = ({
             onLoopingSubtitleChange,
             onPlayingChange,
             onIntensiveChange,
-          })
+          });
         }
-      }
+      },
     });
     subtitleReadyToFeedStandaloneProps$.next(fromZoneId);
     return () => {
       sp.unsubscribe();
-    }
-  }, [fromZoneId,
+    };
+  }, [
+    fromZoneId,
     title,
     filePath,
     seekTo,
@@ -140,8 +159,12 @@ export const SubtitleComponent = ({
     onSubtitlesChange,
     onScrollToIndexChange,
     onLoopingSubtitleChange,
-    onPlayingChange,]);
-  
+    onPlayingChange,
+    intensive$,
+    insiveStrategyIndex$,
+    onIntensiveChange,
+  ]);
+
   const renderListItem = (index: number) => {
     const item = subtitles[index];
     if (!item) {
@@ -154,9 +177,7 @@ export const SubtitleComponent = ({
     ) => {
       const subtitleToPlay = nextSubtitles[nextScrollToIndex];
       seekTo(subtitleToPlay.start / 1000);
-      if (
-        loopingSubtitle !== null 
-      ) {
+      if (loopingSubtitle !== null) {
         // 字幕正在循环
         onLoopingSubtitleChange(subtitleToPlay);
       }
@@ -205,7 +226,7 @@ export const SubtitleComponent = ({
     const adjustStartFrom = (index: number, time: number) => {
       const nextSubtitles = subtitles.map((s: any, i: number) => {
         if (i >= index) {
-          return { ...s, start: s.start + time, };
+          return { ...s, start: s.start + time };
         }
         return s;
       });
@@ -232,10 +253,10 @@ export const SubtitleComponent = ({
       <div
         key={item.id}
         style={{
-          height: 'auto',
+          height: "auto",
           flexGrow: 1,
-          display: 'flex',
-          flexDirection: 'column',
+          display: "flex",
+          flexDirection: "column",
         }}
       >
         <div
@@ -246,7 +267,7 @@ export const SubtitleComponent = ({
             background: "black",
             padding: "6px 10px",
             borderRadius: "0 0 15px 15px",
-            flexWrap: 'wrap',
+            flexWrap: "wrap",
           }}
         >
           <Button
@@ -271,7 +292,11 @@ export const SubtitleComponent = ({
               onPlayingChange(true);
             }}
           >
-            {isPlaying && index === scrollToIndex ? <PauseCircleOutlined /> : <PlayCircleOutlined /> }
+            {isPlaying && index === scrollToIndex ? (
+              <PauseCircleOutlined />
+            ) : (
+              <PlayCircleOutlined />
+            )}
           </Button>
 
           <Button
@@ -397,22 +422,37 @@ export const SubtitleComponent = ({
             </Button>
           </Tooltip>
         </div>
-        <div style={{flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between'}}>
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+          }}
+        >
           <div
             style={{
-              minHeight: subtitleFontSize * 2 + 'px',
-              overflow: 'hidden',
-              position: 'relative',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              ...(singleMode ? {
-                maxHeight: "calc(100% - 36px)",
-                height: "calc(100% - 50px)",
-              } : {})
+              minHeight: subtitleFontSize * 2 + "px",
+              overflow: "hidden",
+              position: "relative",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              ...(singleMode
+                ? {
+                    maxHeight: "calc(100% - 36px)",
+                    height: "calc(100% - 50px)",
+                  }
+                : {}),
             }}
           >
-            <div style={{maxHeight: '100%', overflowY: 'auto', ...(singleMode ? { position: 'absolute', } : {})}}>
+            <div
+              style={{
+                maxHeight: "100%",
+                overflowY: "auto",
+                ...(singleMode ? { position: "absolute" } : {}),
+              }}
+            >
               <div
                 style={{
                   flexGrow: 1,
@@ -422,7 +462,7 @@ export const SubtitleComponent = ({
                   alignItems: "center",
                   textAlign: "center",
                   margin: "20px 14px",
-                  fontSize: subtitleFontSize + 'px',
+                  fontSize: subtitleFontSize + "px",
                   color: scrollToIndex === index ? "#a976ec" : "#ccc",
                 }}
               >
@@ -500,11 +540,33 @@ export const SubtitleComponent = ({
                 })}
               </div>
             </div>
-            {intensive && playHow?.showSubtitle === false && <div style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', padding: '14px 14px 0', }}>
-              <div style={{ background: '#000', width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', borderRadius: '20px'}}>
-                精听循环第{insiveStrategyIndex + 1}遍，{playHow.speed} 倍速播放
+            {intensive && playHow?.showSubtitle === false && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: "100%",
+                  padding: "14px 14px 0",
+                }}
+              >
+                <div
+                  style={{
+                    background: "#000",
+                    width: "100%",
+                    height: "100%",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    borderRadius: "20px",
+                  }}
+                >
+                  精听循环第{insiveStrategyIndex + 1}遍，{playHow.speed}{" "}
+                  倍速播放
+                </div>
               </div>
-            </div>} 
+            )}
           </div>
           <div
             style={{
@@ -622,35 +684,47 @@ export const SubtitleComponent = ({
             />
           </div>
         </div>
-        <div style={{
-          borderBottom: singleMode ? 'none' : "1px solid #c4bfbf",
-          color: "#ccc",
-          display: singleMode ? 'flex' : 'none',
-          alignItems: 'stretch',
-          overflow: 'hidden',
-          height: '40px',
-        }}>
-          <Button disabled={index <= 0} style={{height: '100%', flexGrow: 1, color: '#ccc'}} type="ghost" onClick={() => {
-            const item = subtitles[index - 1];
-            onPlayingChange(true);
-            seekTo((item.start + 10) / 1000);
-            if (loopingSubtitle !== null) {
-              onLoopingSubtitleChange(item);
-            }
-            onScrollToIndexChange(index - 1);
-          }}>
+        <div
+          style={{
+            borderBottom: singleMode ? "none" : "1px solid #c4bfbf",
+            color: "#ccc",
+            display: singleMode ? "flex" : "none",
+            alignItems: "stretch",
+            overflow: "hidden",
+            height: "40px",
+          }}
+        >
+          <Button
+            disabled={index <= 0}
+            style={{ height: "100%", flexGrow: 1, color: "#ccc" }}
+            type="ghost"
+            onClick={() => {
+              const item = subtitles[index - 1];
+              onPlayingChange(true);
+              seekTo((item.start + 10) / 1000);
+              if (loopingSubtitle !== null) {
+                onLoopingSubtitleChange(item);
+              }
+              onScrollToIndexChange(index - 1);
+            }}
+          >
             <LeftOutlined />
           </Button>
 
-          <Button disabled={index >= (subtitles.length - 1)} style={{height: '100%', flexGrow: 1, color: '#ccc'}} type="ghost" onClick={() => {
-            const item = subtitles[index + 1];
-            onPlayingChange(true);
-            seekTo((item.start + 10) / 1000);
-            if (loopingSubtitle !== null) {
-              onLoopingSubtitleChange(item);
-            }
-            onScrollToIndexChange(index + 1);
-          }}>
+          <Button
+            disabled={index >= subtitles.length - 1}
+            style={{ height: "100%", flexGrow: 1, color: "#ccc" }}
+            type="ghost"
+            onClick={() => {
+              const item = subtitles[index + 1];
+              onPlayingChange(true);
+              seekTo((item.start + 10) / 1000);
+              if (loopingSubtitle !== null) {
+                onLoopingSubtitleChange(item);
+              }
+              onScrollToIndexChange(index + 1);
+            }}
+          >
             <RightOutlined />
           </Button>
         </div>
@@ -663,15 +737,22 @@ export const SubtitleComponent = ({
   }
 
   return (
-    <div style={{width: '100%', flexGrow: 1, display: 'flex', flexDirection: 'column'}}>
+    <div
+      style={{
+        width: "100%",
+        flexGrow: 1,
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
       <div
         style={{
           width: "100%",
-          padding: '5px 0',
-          display: layoutMode === 0 ? 'flex' : 'none',
+          padding: "5px 0",
+          display: layoutMode === 0 ? "flex" : "none",
           justifyContent: "center",
           background: "black",
-          flexWrap: 'wrap',
+          flexWrap: "wrap",
         }}
       >
         <Dropdown
@@ -743,7 +824,7 @@ export const SubtitleComponent = ({
                 onClick={() => {
                   const nextSubtitles = subtitles.reduce((acc, curr) => {
                     let last = acc[acc.length - 1];
-                    let shouldMerge = last && last.end > curr.start; 
+                    let shouldMerge = last && last.end > curr.start;
                     if (shouldMerge) {
                       const merged = mergeSubtitles(last, curr);
                       last.end = merged.end;
@@ -765,39 +846,41 @@ export const SubtitleComponent = ({
           }
           placement="bottom"
         >
-          <Button type="text" style={{ color: "#ccc", fontSize: '18px' }}>
+          <Button type="text" style={{ color: "#ccc", fontSize: "18px" }}>
             <MergeCellsOutlined
-                style={{
-                  position: "relative",
-                  bottom: "4px",
-                  transform: "rotate(90deg)",
-                }}
-              />
+              style={{
+                position: "relative",
+                bottom: "4px",
+                transform: "rotate(90deg)",
+              }}
+            />
           </Button>
         </Dropdown>
         <Button
           type="text"
-          style={{ background: singleMode ? 'none' : 'rgb(169, 118, 236)' }}
+          style={{ background: singleMode ? "none" : "rgb(169, 118, 236)" }}
           onClick={() => {
             setSingleMode(!singleMode);
           }}
         >
           <Icon icon="list" size={18} color="#ccc" />
         </Button>
-        {!singleMode && <Button
-          type="text"
-          style={{ color: "#ccc" }}
-          onClick={() => {
-            scrollTo(scrollToIndex, "auto");
-          }}
-        >
-          <Icon icon="locate" size={18} color="#ccc" />
-        </Button>}
+        {!singleMode && (
+          <Button
+            type="text"
+            style={{ color: "#ccc" }}
+            onClick={() => {
+              scrollTo(scrollToIndex, "auto");
+            }}
+          >
+            <Icon icon="locate" size={18} color="#ccc" />
+          </Button>
+        )}
         <Button
           type="text"
-          style={{ background: intensive ? 'rgb(169, 118, 236)' : 'none' }}
+          style={{ background: intensive ? "rgb(169, 118, 236)" : "none" }}
           onClick={() => {
-            onIntensiveChange(!intensive)
+            onIntensiveChange(!intensive);
           }}
         >
           <Icon icon="lightning" size={18} color="#ccc" />
@@ -820,30 +903,32 @@ export const SubtitleComponent = ({
         >
           <FontSizeOutlined /> +
         </Button>
-        {fromZoneId && <Button
-          type="text"
-          style={{ color: "#ccc" }}
-          onClick={() => {
-            console.log('openStandaloneSubtitle, title:', title);
-            openStandaloneSubtitle$.next({
-              title,
-              filePath,
-              fromZoneId,
-            });
-          }}
-        >
-          <Icon icon="duplicate" size={18} color="#ccc" />
-        </Button>}
+        {fromZoneId && (
+          <Button
+            type="text"
+            style={{ color: "#ccc" }}
+            onClick={() => {
+              console.log("openStandaloneSubtitle, title:", title);
+              openStandaloneSubtitle$.next({
+                title,
+                filePath,
+                fromZoneId,
+              });
+            }}
+          >
+            <Icon icon="duplicate" size={18} color="#ccc" />
+          </Button>
+        )}
       </div>
-      {!singleMode && <Virtuoso
-        style={{ flexGrow: 1, overflowX: 'hidden' }}
-        totalCount={subtitles.length}
-        ref={virtuoso}
-        itemContent={(index) => renderListItem(index)}
-      />}
-      {
-        singleMode && renderListItem(scrollToIndex > -1 ? scrollToIndex : 0)
-      }
+      {!singleMode && (
+        <Virtuoso
+          style={{ flexGrow: 1, overflowX: "hidden" }}
+          totalCount={subtitles.length}
+          ref={virtuoso}
+          itemContent={(index) => renderListItem(index)}
+        />
+      )}
+      {singleMode && renderListItem(scrollToIndex > -1 ? scrollToIndex : 0)}
     </div>
   );
 };
