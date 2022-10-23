@@ -10,7 +10,7 @@ export type StandaloneSubtitleProps = {
   loopingSubtitle$: BehaviorSubject<Subtitle | null>;
   scrollToIndex$: BehaviorSubject<number>;
   intensive$: BehaviorSubject<boolean>;
-  insiveStrategyIndex$: BehaviorSubject<number>;
+  intensiveStrategyIndex$: BehaviorSubject<number>;
   onSubtitlesChange: (nextSubtitles: Subtitle[]) => void;
   onScrollToIndexChange: (nextScrollToIndex: number) => void;
   onLoopingSubtitleChange: (subtitle: Subtitle | null) => void;

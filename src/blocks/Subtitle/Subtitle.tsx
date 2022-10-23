@@ -1,4 +1,4 @@
-import { Button, Dropdown, Menu, Popconfirm, Switch, Tooltip } from "antd";
+import { Button, Dropdown, Menu, message, Popconfirm, Switch, Tooltip } from "antd";
 import React, { CSSProperties, useCallback, useEffect, useRef, useState } from "react";
 import ReactPlayer from "react-player";
 import { Subtitle } from "../../type/Subtitle";
@@ -25,6 +25,7 @@ import { useBehavior } from "../../state";
 import { addSubtitleInput$, fetchStandaloneProps$, openStandaloneSubtitle$, standaloneSubtitleProps$, subtitleReadyToFeedStandaloneProps$ } from "../../state/subtitle";
 import { defaultIntensiveStrategy } from "../../type/SubtitlePlayStrategy";
 import { Icon } from "@blueprintjs/core";
+import { reloadSubtitlesOfVideo } from "../../service/http/Subtitle";
 
 export const SubtitleComponent = ({
   title,
@@ -35,7 +36,7 @@ export const SubtitleComponent = ({
   isPlaying$,
   scrollToIndex$,
   intensive$,
-  insiveStrategyIndex$,
+  intensiveStrategyIndex$,
   onSubtitlesChange,
   onScrollToIndexChange,
   onLoopingSubtitleChange,
@@ -54,7 +55,7 @@ export const SubtitleComponent = ({
   loopingSubtitle$: BehaviorSubject<Subtitle | null>;
   scrollToIndex$: BehaviorSubject<number>;
   intensive$: BehaviorSubject<boolean>;
-  insiveStrategyIndex$: BehaviorSubject<number>;
+  intensiveStrategyIndex$: BehaviorSubject<number>;
   onSubtitlesChange: (nextSubtitles: Subtitle[]) => void;
   onScrollToIndexChange: (nextScrollToIndex: number) => void;
   onLoopingSubtitleChange: (subtitle: Subtitle | null) => void;
@@ -68,8 +69,8 @@ export const SubtitleComponent = ({
   const [isPlaying] = useBehavior(isPlaying$, false);
   const [scrollToIndex] = useBehavior(scrollToIndex$, -1);
   const [intensive] = useBehavior(intensive$, true);
-  const [insiveStrategyIndex] = useBehavior(insiveStrategyIndex$, 0);
-  const playHow = defaultIntensiveStrategy[insiveStrategyIndex];
+  const [intensiveStrategyIndex] = useBehavior(intensiveStrategyIndex$, 0);
+  const playHow = defaultIntensiveStrategy[intensiveStrategyIndex];
 
   const subtitles = _subtitles || [];
   const loopingSubtitle = _loopingSubtitle !== null ? subtitles.find(({start, end, subtitles}) => {
@@ -115,7 +116,7 @@ export const SubtitleComponent = ({
             isPlaying$,
             scrollToIndex$,
             intensive$,
-            insiveStrategyIndex$,
+            intensiveStrategyIndex$,
             onSubtitlesChange,
             onScrollToIndexChange,
             onLoopingSubtitleChange,
@@ -141,6 +142,25 @@ export const SubtitleComponent = ({
     onScrollToIndexChange,
     onLoopingSubtitleChange,
     onPlayingChange,]);
+
+  const adjustEndFromIndex = (subtitles: Subtitle[], index: number, time: number) => {
+    return subtitles.map((s: any, i: number) => {
+      if (i >= index) {
+        return { ...s, end: s.end + time };
+      }
+      return s;
+    });
+  }
+
+  const adjustStartFromIndex = (subtitles: Subtitle[], index: number, time: number) => {
+    return subtitles.map((s: any, i: number) => {
+      if (i >= index) {
+        return { ...s, start: s.start + time };
+      }
+      return s;
+    });
+  }
+
   
   const renderListItem = (index: number) => {
     const item = subtitles[index];
@@ -203,12 +223,7 @@ export const SubtitleComponent = ({
      * @param time 要调节的时间
      */
     const adjustStartFrom = (index: number, time: number) => {
-      const nextSubtitles = subtitles.map((s: any, i: number) => {
-        if (i >= index) {
-          return { ...s, start: s.start + time, };
-        }
-        return s;
-      });
+      const nextSubtitles = adjustStartFromIndex(subtitles, index, time);
       onSubtitlesChange(nextSubtitles);
       playFromStart(nextSubtitles, index);
     };
@@ -218,12 +233,7 @@ export const SubtitleComponent = ({
      * @param time 要调节的时间
      */
     const adjustEndFrom = (index: number, time: number) => {
-      const nextSubtitles = subtitles.map((s: any, i: number) => {
-        if (i >= index) {
-          return { ...s, end: s.end + time };
-        }
-        return s;
-      });
+      const nextSubtitles = adjustEndFromIndex(subtitles, index, time);
       onSubtitlesChange(nextSubtitles);
       playFromStart(nextSubtitles, index);
     };
@@ -502,7 +512,7 @@ export const SubtitleComponent = ({
             </div>
             {intensive && playHow?.showSubtitle === false && <div style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', padding: '14px 14px 0', }}>
               <div style={{ background: '#000', width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', borderRadius: '20px'}}>
-                精听循环第{insiveStrategyIndex + 1}遍，{playHow.speed} 倍速播放
+                精听循环第{intensiveStrategyIndex + 1}遍，{playHow.speed} 倍速播放
               </div>
             </div>} 
           </div>
@@ -674,107 +684,50 @@ export const SubtitleComponent = ({
           flexWrap: 'wrap',
         }}
       >
-        <Dropdown
-          trigger={["click"]}
-          overlay={
-            <Menu>
-              <Menu.Item
-                onClick={() => {
-                  const nextSubtitles = subtitles.reduce((acc, curr) => {
-                    let last = acc[acc.length - 1];
-                    let shouldMerge =
-                      last &&
-                      last.subtitles.find((s: string) =>
-                        s.trim().endsWith(",")
-                      ) !== undefined;
-                    if (shouldMerge) {
-                      const merged = mergeSubtitles(last, curr);
-                      last.end = merged.end;
-                      last.subtitles = merged.subtitles;
-                    } else {
-                      acc.push(curr);
-                    }
-                    return acc;
-                  }, [] as Subtitle[]);
-                  onSubtitlesChange(nextSubtitles);
-                  onLoopingSubtitleChange(null);
-                  onScrollToIndexChange(0);
-                  seekTo(nextSubtitles[0].start / 1000);
-                }}
-              >
-                逗号结尾的合并
-              </Menu.Item>
-              <Menu.Item
-                onClick={() => {
-                  /**
-                       *  P：标点字符；
-                          L：字母； 
-                          M：标记符号（一般不会单独出现）； 
-                          Z：分隔符（比如空格、换行等）； 
-                          S：符号（比如数学符号、货币符号等）； 
-                          N：数字（比如阿拉伯数字、罗马数字等）； 
-                          C：其他字符 
-                      */
-                  const nextSubtitles = subtitles.reduce((acc, curr) => {
-                    let last = acc[acc.length - 1];
-                    let shouldMerge =
-                      last &&
-                      last.subtitles.find(
-                        (s: string) => /\p{L}$/u.test(s.trim()) // 以字结尾
-                      ) !== undefined;
-                    if (shouldMerge) {
-                      const merged = mergeSubtitles(last, curr);
-                      last.end = merged.end;
-                      last.subtitles = merged.subtitles;
-                    } else {
-                      acc.push(curr);
-                    }
-                    return acc;
-                  }, [] as Subtitle[]);
-                  onSubtitlesChange(nextSubtitles);
-                  onLoopingSubtitleChange(null);
-                  onScrollToIndexChange(0);
-                  seekTo(nextSubtitles[0].start / 1000);
-                }}
-              >
-                非标点结尾的合并
-              </Menu.Item>
-              <Menu.Item
-                onClick={() => {
-                  const nextSubtitles = subtitles.reduce((acc, curr) => {
-                    let last = acc[acc.length - 1];
-                    let shouldMerge = last && last.end > curr.start; 
-                    if (shouldMerge) {
-                      const merged = mergeSubtitles(last, curr);
-                      last.end = merged.end;
-                      last.subtitles = merged.subtitles;
-                    } else {
-                      acc.push(curr);
-                    }
-                    return acc;
-                  }, [] as Subtitle[]);
-                  onSubtitlesChange(nextSubtitles);
-                  onLoopingSubtitleChange(null);
-                  onScrollToIndexChange(0);
-                  seekTo(nextSubtitles[0].start / 1000);
-                }}
-              >
-                有时间交叉的合并
-              </Menu.Item>
-            </Menu>
-          }
-          placement="bottom"
+        <Button type="text" style={{ color: "#ccc", fontSize: '20px' }}
+          onClick={() => {
+            const lengthBeforMerge = subtitles.length;
+            const nextSubtitles = adjustStartFromIndex(adjustEndFromIndex(subtitles, 0, 100), 0, -100)
+            .reduce((acc, curr) => {
+              let last = acc[acc.length - 1];
+              let shouldMerge = last && last.end > curr.start; 
+              if (shouldMerge) {
+                const merged = mergeSubtitles(last, curr);
+                last.end = merged.end;
+                last.subtitles = merged.subtitles;
+              } else {
+                acc.push(curr);
+              }
+              return acc;
+            }, [] as Subtitle[]);
+            const lengthAfterMerge = nextSubtitles.length;
+            const mergedLength = lengthBeforMerge - lengthAfterMerge;
+            onSubtitlesChange(nextSubtitles);
+            if (mergedLength > 0) {
+              message.info(`合并了${mergedLength}条字幕`);
+              seekTo(nextSubtitles[0].start / 1000);
+              onScrollToIndexChange(0);
+              onLoopingSubtitleChange(null);
+            } else {
+              message.info(`已增加每条字幕时长，但未找到相邻的可合并字幕，请重试`, 2);
+            }
+          }}
         >
-          <Button type="text" style={{ color: "#ccc", fontSize: '18px' }}>
-            <MergeCellsOutlined
-                style={{
-                  position: "relative",
-                  bottom: "4px",
-                  transform: "rotate(90deg)",
-                }}
-              />
-          </Button>
-        </Dropdown>
+          <MergeCellsOutlined
+              style={{
+                position: "relative",
+                bottom: "7px",
+                transform: "rotate(90deg)",
+              }}
+            />
+        </Button>
+        <Button onClick={() => {
+          reloadSubtitlesOfVideo(filePath).then((nextSubtitles) => {
+            onSubtitlesChange(nextSubtitles);
+          });
+        }}
+        type="text" style={{ color: "#ccc", fontSize: '18px' }}
+        ><Icon icon="reset" size={18} color="#ccc" style={{position: 'relative', top: '-6px'}}/></Button>
         <Button
           type="text"
           style={{ background: singleMode ? 'none' : 'rgb(169, 118, 236)' }}

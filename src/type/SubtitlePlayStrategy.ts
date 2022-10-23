@@ -13,7 +13,7 @@ export type SubtitlePlayStrategy = PlayHow[];
 export const defaultIntensiveStrategy: SubtitlePlayStrategy = [
     new PlayHow(1, false),
     new PlayHow(1, false),
-    new PlayHow(0.75, true),
     new PlayHow(0.75, false),
+    new PlayHow(0.5, true),
     new PlayHow(1, true),
 ];

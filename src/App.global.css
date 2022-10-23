@@ -449,7 +449,7 @@ body {
   position: fixed !important;
   top: 0;
   left: 0;
-  z-index: 5;
+  z-index: 6;
 }
 
 .mosaic.mosaic-blueprint-theme.bp3-dark .mosaic-window-toolbar, 
