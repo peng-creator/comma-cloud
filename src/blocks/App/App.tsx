@@ -411,6 +411,7 @@ export const App = () => {
                 </Button>,
                 <div style={{ transform: 'scale(1.4)', position: 'relative', left: '-2px' }}>
                   <RemoveButton onClick={() => {
+                    setFullScreenZoneId('');
                     removeZone(zone);
                   }} />
                 </div>,
