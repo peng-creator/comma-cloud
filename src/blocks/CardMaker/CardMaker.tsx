@@ -107,6 +107,7 @@ const Component = ({ layoutMode }: { layoutMode: number }) => {
         currentCard.clean = false;
         saveCard(currentCard);
         setFlashCards([...flashCards]);
+        message.info('已加入卡片！');
       },
     });
     return () => sp.unsubscribe();
@@ -156,7 +157,7 @@ const Component = ({ layoutMode }: { layoutMode: number }) => {
     <div
       style={{
         display: "flex",
-        flexDirection: layoutMode === 0 ? "row" : "column",
+        flexDirection: layoutMode !== 0 ? "row" : "column",
         width: "100%",
         height: "100%",
         overflow: "auto",
@@ -164,7 +165,7 @@ const Component = ({ layoutMode }: { layoutMode: number }) => {
         minWidth: '300px',
       }}
     >
-      <div style={{ width: layoutMode === 0 ? '300px' : '100%', height: layoutMode === 0 ? '100%' : '200px', flexGrow: 1 }}>
+      <div style={{ width: layoutMode !== 0 ? '300px' : '100%', height: layoutMode !== 0 ? '100%' : '200px', flexGrow: 1 }}>
         <Input
           style={{ width: "100%" }}
           placeholder="搜索卡片"
@@ -275,7 +276,7 @@ const Component = ({ layoutMode }: { layoutMode: number }) => {
             width: "100%",
             overflow: "hidden",
             flexDirection: "column",
-            ...(layoutMode === 0 ? {}: {marginTop: '14px'} )
+            ...(layoutMode !== 0 ? {}: {marginTop: '14px'} )
           }}
         >
           <div
@@ -522,7 +523,9 @@ const Component = ({ layoutMode }: { layoutMode: number }) => {
                   }}
                   onFocus={async () => {
                     const copiedText = await checkClipboard();
-                    setCopiedText(copiedText);
+                    if (copiedText) {
+                      setCopiedText(copiedText);
+                    }
                   }}
                   onBlur={() => {
                     setTimeout(() => {

@@ -8,6 +8,8 @@ export const writeToClipboard = async (text: string) => {
 
 export const checkClipboard = async () => {
   const { type, value } = await Clipboard.read();
-  return value;
+  const p = document.createElement('p');
+  p.innerHTML = value;
+  return p.textContent;
 };
 

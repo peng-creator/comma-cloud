@@ -3,19 +3,13 @@
   "short_name": "Comma",
   "start_url": ".",
   "display": "fullscreen",
-  "background_color": "#252a31",
-  "theme_color": "#252a31",
+  "background_color": "#f578a7",
+  "theme_color": "#f578a7",
   "icons": [
     {
       "src": "assets/icon/favicon.png",
-      "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/png"
-    },
-    {
-      "src": "assets/icon/icon.svg",
-      "type": "image/png",
       "sizes": "512x512",
-      "purpose": "maskable"
+      "type": "image/png"
     }
   ]
 }

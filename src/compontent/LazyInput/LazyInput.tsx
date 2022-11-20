@@ -85,6 +85,7 @@ export const LazyInput = ({
           justifyContent: 'center',
           flexWrap: 'wrap',
           wordBreak: 'break-word',
+          alignItems: 'center',
         }}
       >
         {content.split(/\s/).map((word: string, index: number) => {

@@ -15,7 +15,7 @@ import {
   saveCard,
   searchCardCollections,
 } from "../../service/http/Card";
-import { shuffle } from 'lodash';
+import { reverse } from 'lodash';
 
 const loadNextCardAction$ = new BehaviorSubject<any>(1);
 
@@ -28,7 +28,7 @@ const Component = () => {
     let currentCollectionIndex = 0;
     let cardsToReview = [] as FlashCard[];
 
-    loadNextCardAction$.subscribe({
+    const sp = loadNextCardAction$.subscribe({
       next: async () => {
         setRecall('');
         if (cardsToReview.length > 0) {
@@ -41,7 +41,7 @@ const Component = () => {
           }
         }
         let collectionKeywordList = await getCardCollections(); // 等待集合列表加载完毕
-        collectionKeywordList = shuffle(collectionKeywordList);
+        collectionKeywordList = reverse(collectionKeywordList);
         while (collectionKeywordList.length > currentCollectionIndex) {
           const keyword = collectionKeywordList[currentCollectionIndex];
           currentCollectionIndex += 1;
@@ -67,6 +67,9 @@ const Component = () => {
         setShowBack(false);
       },
     });
+    return () => {
+      sp.unsubscribe();
+    }
   }, []);
 
   useEffect(() => {
@@ -142,19 +145,23 @@ const Component = () => {
           flexGrow: 1,
         }}
       >
-        <div
-          tabIndex={0}
-          onClick={() => searchSentence(cardToReview.front.word)}
-          onKeyDown={() => {}}
-          style={{ cursor: 'pointer' }}
-        >
-          {cardToReview.front.word}
+        <div>
+          <span
+            style={{ cursor: 'pointer', fontSize: '30px' }} 
+            tabIndex={0}
+            onClick={() => searchSentence(cardToReview.front.word)}
+            onKeyDown={() => searchSentence(cardToReview.front.word)}
+          >
+            {cardToReview.front.word}
+          </span>
         </div>
         <div
           style={{
             borderBottom: '1px solid #ddd',
             margin: '14px 0',
             paddingBottom: '14px',
+            maxHeight: '240px',
+            overflowY: 'auto',
           }}
         >
           <div>
@@ -230,8 +237,8 @@ const Component = () => {
             marginBottom: '12px',
           }}
         />
-        <div style={{ position: 'relative' }}>
-          {!showBack && (
+        <div style={{ position: 'relative', minHeight: '60px', }}>
+          {!showBack && cardToReview.back && (
             <div
               style={{
                 position: 'absolute',
@@ -244,7 +251,6 @@ const Component = () => {
                 justifyContent: 'center',
                 alignItems: 'center',
                 cursor: 'pointer',
-                minHeight: '60px',
               }}
               tabIndex={0}
               onKeyDown={() => {}}

@@ -32,10 +32,3 @@ export const useBehavior = <T>(
 ) => {
   return useSubject(behaviorSubject, initailValue);
 };
-
-export const useDebouncedEffect = (onEffect: () => void, deps: any[] = []) => {
-  useEffect(() => {
-    const timer = setTimeout(() => onEffect(), 1);
-    return () => clearTimeout(timer);
-  }, deps);
-};

@@ -21,13 +21,20 @@ export type MarkMap = {
   [key: string]: string | undefined;
 };
 
-const pdfScroll$ = new Subject<any>();
 const toutchWord$ = new Subject<string>();
-toutchWord$.pipe(debounceTime(1)).subscribe({
+toutchWord$.pipe(debounceTime(100)).subscribe({
   next(value) {
     tapWord$.next(value);
   },
 });
+
+function detectIsPC() {
+  var ua = window.navigator.userAgent;
+
+  var platform = /Windows|Macintosh|Linux|Ubuntu/i
+  return platform.test(ua)
+}
+const isPc = detectIsPC();
 
 type InnerPdfProps = {
   filePath: string;
@@ -129,8 +136,6 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
   const [backgroundColor, setBackgroundColor] = useState(localStorage.getItem('pdf-background-color') || "#000");
   const [colorEditing, setColorEditing] = useState(color);
   const [backgroundColorEditing, setBackgroundColorEditing] = useState(backgroundColor);
-  const [pdfMenuTop, setPdfMenuTop] = useState(0);
-  const [pdfPageNumberBottom, setPdfPageNumberBottom] = useState(14);
 
   useEffect(() => {
     let styleEl = document.querySelector('style#pdf-config');
@@ -151,16 +156,6 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
   }, [color, backgroundColor]);
 
   useEffect(() => {
-    const sp = pdfScroll$.pipe(debounceTime(20)).subscribe({
-      next() {
-        setPdfMenuTop(containerRef.current?.querySelector('.pdf-container')?.scrollTop || 0);
-        setPdfPageNumberBottom(14 - (containerRef.current?.querySelector('.pdf-container')?.scrollTop || 0));
-      }
-    });
-    return () => sp.unsubscribe();
-  }, [])
-
-  useEffect(() => {
     const container = containerRef.current;
     const fitWidth = () => {
       if (container) {
@@ -176,6 +171,17 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
       container?.removeEventListener("resize", fitWidth);
     };
   }, [containerRef]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+    const pdfContainer = container.querySelector('.pdf-container');
+    if (pdfContainer) {
+      pdfContainer.scrollTop = 0;
+    }
+  }, [pageNumber]);
 
   useEffect(() => {
     const page = pageRef.current;
@@ -201,15 +207,19 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
   }, [outSideNoteOpened, note]);
 
   const highlight = useCallback((start: number, end: number) => {
-    const {r, g, b} = complementary(hex2rgbObject(color));
+    const { r, g, b } = complementary(hex2rgbObject(color));
     wordIndexMap.forEach((index, ele) => {
       if (index >= start && index <= end) {
-        ele.style.background = `rgba(${r}, ${g}, ${b}, 0.2)`;
+        if (pureMode) {
+          ele.style.background = `rgba(${r}, ${g}, ${b}, 0.4)`;
+        } else {
+          ele.style.background = `rgba(255, 255, 0, 0.4)`;
+        }
       } else {
         ele.style.background = 'none';
       }
     })
-  }, [wordIndexMap, color]);
+  }, [wordIndexMap, color, pureMode]);
 
   const cancelHighlight = useCallback((start: number, end: number) => {
     wordIndexMap.forEach((index, ele) => {
@@ -277,14 +287,19 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
     }
   };
   const checkSelectEnd = (e: any) => {
-    // const target = e.target as HTMLDivElement;
-    const changedTouch = e.changedTouches[0];
-    const target: HTMLDivElement = document.elementFromPoint(changedTouch.clientX, changedTouch.clientY) as any;
+    let target: HTMLDivElement;
+    try {
+      const changedTouch = e.changedTouches[0];
+      target = document.elementFromPoint(changedTouch.clientX, changedTouch.clientY) as any;
+    } catch (err) {
+      target = e.target as HTMLDivElement;
+    }
 
     console.log('checkSelectEnd')
     setIsSelecting(false);
     const targetIsWordEl = target.classList.contains('pdf_page_word');
     if (isSelecting) {
+      console.log('isSelecting');
       let start = selectStartIndex;
       let end = selectEndIndex;
       let words: string[] = [];
@@ -321,18 +336,14 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
               cancelHighlight(start, end);
               setCreatedNote(null);
             },
-            title: '撤销标注',
-          },
-          {
-            onClick: () => {
-            },
-            title: '关闭',
+            title: '撤销',
           },
         ]
       ]);
       show(e);
 
     } else if (targetIsWordEl && createdNote !== null) { // 点击文字，且当前已有标注
+      console.log('点击文字，且当前已有标注');
       let wordIndex = wordIndexMap.get(target);
       const { start, end } = createdNote;
       if (wordIndex !== undefined && wordIndex >= start && wordIndex <= end) {
@@ -355,40 +366,31 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
                 cancelHighlight(start, end);
                 setCreatedNote(null);
               },
-              title: '撤销标注',
-            },
-            {
-              onClick: () => {
-              },
-              title: '关闭',
+              title: '撤销',
             },
           ]
         ]);
         show(e);
-      } else {
-        let word = target.textContent || '';
-        if (word) {
-          tapWord$.next(word);
-        }
+      } else if (target === pointerDownTarget && targetIsWordEl) {
+        toutchWord$.next(target.textContent || '');
       }
-    } else if (createdNote !== null && target === pointerDownTarget) { // 空白处点击， 取消标注
-      const { start, end } = createdNote;
-      cancelHighlight(start, end);
-      setCreatedNote(null);
-    } else if (targetIsWordEl) {
-      let word = target.textContent || '';
-      if (word) {
-        tapWord$.next(word);
-      }
+    } else if (createdNote !== null && target === pointerDownTarget) {
+      console.log('空白处点击, 隐藏菜单');
+      // const { start, end } = createdNote;
+      // cancelHighlight(start, end);
+      // setCreatedNote(null);
+      hideAll();
+    }  else if (target === pointerDownTarget && targetIsWordEl) {
+      toutchWord$.next(target.textContent || '');
     }
     setSelectEndIndex(-1);
     setSelectStartIndex(-1);
   }
   console.log(`render pdf view pageHeight: ${pageHeight}, pageWidth: ${pageWidth} , `);
 
-  const PageNav = ({direction}: {direction: 'left' | 'right'}) => {
-    return <div style={{display: 'flex', zIndex: 2, flexDirection: direction === 'left' ? 'column' : 'column-reverse', position: 'absolute', top: 'calc(50% - 25px)',[direction]: '14px'}}>
-      <Button style={{width: '50px', height: '50px', borderRadius: '25px', margin: '12px 0'}} onClick={() => {
+  const PageNav = ({ direction }: { direction: 'left' | 'right' }) => {
+    return <div style={{ display: 'flex', zIndex: 2, flexDirection: direction === 'left' ? 'column' : 'column-reverse', position: 'absolute', top: 'calc(50% - 25px)', [direction]: '14px' }}>
+      <Button style={{ width: '50px', height: '50px', borderRadius: '25px', margin: '12px 0' }} onClick={() => {
         const nextPage = pageNumber - 1;
         if (nextPage > numPages) {
           setPageNumber(numPages);
@@ -402,7 +404,7 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
       }}>
         <LeftOutlined />
       </Button>
-      <Button   style={{width: '50px', height: '50px', borderRadius: '25px'}}     onClick={() => {
+      <Button style={{ width: '50px', height: '50px', borderRadius: '25px' }} onClick={() => {
         const nextPage = pageNumber + 1;
         if (nextPage > numPages) {
           setPageNumber(numPages);
@@ -418,6 +420,43 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
       </Button>
     </div>
   }
+
+  const onTouchStart = (e: any) => {
+    // e.stopPropagation();
+    if (selectLongPressTimer) {
+      clearTimeout(selectLongPressTimer);
+    }
+    setPointerDownTarget(e.target as HTMLElement);
+    setSelectLongPressTimer(setTimeout(() => {
+      checkSelectStart(e);
+      setSelectLongPressTimer(null);
+    }, 500))
+  };
+  const onTouchMove = (e: any) => {
+    // e.stopPropagation();
+    let elem: any;
+    try {
+      const changedTouch = e.changedTouches[0];
+      elem = document.elementFromPoint(changedTouch.clientX, changedTouch.clientY) as any;
+    } catch (err) {
+      elem = e.target;
+    }
+    if (elem !== pointerDownTarget) {
+      if (selectLongPressTimer !== null) {
+        clearTimeout(selectLongPressTimer);
+        setSelectLongPressTimer(null);
+      }
+      checkSelect(elem);
+    }
+  };
+  const onTouchEnd = (e: any) => {
+    // e.stopPropagation();
+    checkSelectEnd(e);
+    if (selectLongPressTimer) {
+      clearTimeout(selectLongPressTimer);
+      setSelectLongPressTimer(null);
+    }
+  };
   return (
     <div
       style={{
@@ -426,15 +465,102 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
         overflow: "hidden",
         position: "relative",
         userSelect: 'none',
+        background: pureMode ? backgroundColor : '#fff',
       }}
       ref={containerRef}
     >
       <link rel="stylesheet" href="/assets/AnnotationLayer.css" />
       <link rel="stylesheet" href="/assets/TextLayer.css" />
-      
+
 
       <PageNav direction="left"></PageNav>
       <PageNav direction="right"></PageNav>
+      <div style={{ position: 'absolute', top: 0, right: '14px', zIndex: 1 }}>
+        <Dropdown
+          getPopupContainer={() => {
+            return containerRef.current || document.body;
+          }}
+          trigger={['click']}
+          overlay={<div className="pdfHeader" style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', background: '#000', color: '#ccc' }}>
+            <Button
+              onClick={() => {
+                const container = containerRef.current;
+                if (container) {
+                  setFitHeight(true);
+                  setFitWidth(false);
+                  setPageWidth(container.clientWidth);
+                  setPageHeight(container.clientHeight);
+                  setScale(1);
+                }
+              }}
+            >
+              适应高度
+            </Button>
+            <Button
+              onClick={() => {
+                const container = containerRef.current;
+                if (container) {
+                  setFitHeight(false);
+                  setFitWidth(true);
+                  setPageWidth(container.clientWidth);
+                  setPageHeight(container.clientHeight);
+                  setScale(1);
+                }
+              }}
+            >
+              适应宽度
+            </Button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Button onClick={() => {
+                if (scale <= 0.25) {
+                  return;
+                }
+                setScale(scale - 0.25);
+              }}>-</Button>
+              <span style={{ width: '50px', overflow: 'hidden', textAlign: 'center' }}>{parseInt(`${scale * 100}`, 10)}%</span>
+              <Button onClick={() => {
+                if (scale >= 3) {
+                  return;
+                }
+                setScale(scale + 0.25);
+              }}>+</Button>
+
+            </div>
+            <div style={{ padding: '14px 0', display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '0 14px' }}>
+              <span>纯文本模式:</span> <Switch style={{ margin: '0 14px' }} checked={pureMode} checkedChildren="on" unCheckedChildren="off" title="纯文本模式" onChange={(checked) => setPureMode(checked)} />
+            </div>
+            {pureMode && <Button onClick={() => { setIsModalVisible(true) }}>颜色设置</Button>}
+          </div>}>
+          <a onClick={e => e.preventDefault()} style={{ color: pureMode ? color : '#000', fontSize: '25px' }}>
+            <UnorderedListOutlined />
+          </a>
+        </Dropdown>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'center', position: 'absolute', bottom: '20px', right: '14px', color: pureMode ? color : '#000', zIndex: 2, fontSize: '18px' }}>
+        <Input
+          style={{
+            width: '50px',
+            textAlign: 'right', outline: 'none', border: 'none', display: 'inline-block', background: 'none', color: pureMode ? color : '#000',
+            fontSize: '18px',
+            position: 'relative',
+            top: '-4px',
+            right: '-4px',
+          }}
+          onChange={(e) => {
+            const nextPage = parseInt(e.target.value) || 0;
+            if (nextPage > numPages) {
+              setPageNumber(numPages);
+              return;
+            }
+            if (nextPage < 1) {
+              setPageNumber(1);
+              return;
+            }
+            setPageNumber(nextPage);
+          }}
+          value={pageNumber} />
+        / {numPages}
+      </div>
       <div
         style={{
           maxWidth: "100%",
@@ -445,97 +571,9 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
           top: '50%',
           transform: 'translate(-50%, -50%)'
         }}
-        className={["pdf-container", pureMode ? 'pure-text-mode': ''].join(' ')}
-        onScroll={() => {
-          pdfScroll$.next('');
-        }}
+        className={["pdf-container", pureMode ? 'pure-text-mode' : ''].join(' ')}
       >
-     <div style={{position: 'absolute', top: pdfMenuTop + 'px', right: '14px', zIndex: 1}}>
-      <Dropdown 
-      getPopupContainer={() => {
-        return containerRef.current || document.body;
-      }}
-      trigger={['click']}
-      overlay={      <div className="pdfHeader" style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', background:'#000', color: '#ccc' }}>
-        <Button
-          onClick={() => {
-            const container = containerRef.current;
-            if (container) {
-              setFitHeight(true);
-              setFitWidth(false);
-              setPageWidth(container.clientWidth);
-              setPageHeight(container.clientHeight);
-              setScale(1);
-            }
-          }}
-        >
-          适应高度
-        </Button>
-        <Button
-          onClick={() => {
-            const container = containerRef.current;
-            if (container) {
-              setFitHeight(false);
-              setFitWidth(true);
-              setPageWidth(container.clientWidth);
-              setPageHeight(container.clientHeight);
-              setScale(1);
-            }
-          }}
-        >
-          适应宽度
-        </Button>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Button onClick={() => {
-            if (scale <= 0.25) {
-              return;
-            }
-            setScale(scale - 0.25);
-          }}>-</Button>
-          <span style={{ width: '50px', overflow: 'hidden', textAlign: 'center' }}>{parseInt(`${scale * 100}`, 10)}%</span>
-          <Button onClick={() => {
-            if (scale >= 3) {
-              return;
-            }
-            setScale(scale + 0.25);
-          }}>+</Button>
 
-        </div>
-        <div style={{ padding: '14px 0', display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '0 14px'}}>
-          <span>纯文本模式:</span> <Switch style={{margin: '0 14px'}} checked={pureMode}  checkedChildren="on" unCheckedChildren="off" title="纯文本模式" onChange={(checked) => setPureMode(checked)}/>
-        </div>
-        {pureMode && <Button onClick={() => {setIsModalVisible(true)}}>颜色设置</Button>}
-      </div>}>
-        <a onClick={e => e.preventDefault()} style={{color: pureMode ? color : '#000', fontSize: '25px'}}>
-          <UnorderedListOutlined />
-        </a>
-      </Dropdown>
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'center', position: 'absolute', bottom: pdfPageNumberBottom + 'px', right: '14px', color: pureMode ? color : '#000', zIndex: 2, fontSize: '18px'}}>
-        <Input 
-        style={{
-          width: '50px',
-          textAlign: 'right', outline: 'none', border: 'none', display: 'inline-block', background: 'none', color: pureMode ? color : '#000',
-          fontSize: '18px',
-          position: 'relative',
-          top: '-4px',
-          right: '-4px',
-        }}
-        onChange={(e) => {
-          const nextPage = parseInt(e.target.value) || 0;
-          if (nextPage > numPages) {
-            setPageNumber(numPages);
-            return;
-          }
-          if (nextPage < 1) {
-            setPageNumber(1);
-            return;
-          }
-          setPageNumber(nextPage);
-        }}
-          value={pageNumber} />
-        / {numPages}
-      </div>
 
         <div
           style={{
@@ -581,37 +619,33 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
           //     setSelectLongPressTimer(null);
           //   }
           // }}
-          onTouchStart={(e) => {
-            e.stopPropagation();
-            if (selectLongPressTimer) {
-              clearTimeout(selectLongPressTimer);
-            }
-            setPointerDownTarget(e.target as HTMLElement);
-            setSelectLongPressTimer(setTimeout(() => {
-              checkSelectStart(e);
-              setSelectLongPressTimer(null);
-            }, 500))
-          }}
-          onTouchMove={(e) => {
-            e.stopPropagation();
-            const changedTouch = e.changedTouches[0];
-            const elem = document.elementFromPoint(changedTouch.clientX, changedTouch.clientY) as any;
-            if (elem !== pointerDownTarget) {
-              if (selectLongPressTimer !== null) {
-                clearTimeout(selectLongPressTimer);
-                setSelectLongPressTimer(null);
-              }
-              checkSelect(elem);
+
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+          onMouseDown={(e) => {
+            if (isPc) {
+              console.log('mouseDown:', e);
+              onTouchStart(e);
             }
           }}
-          onTouchEnd={(e) => {
-            e.stopPropagation();
-            checkSelectEnd(e);
-            if (selectLongPressTimer) {
-              clearTimeout(selectLongPressTimer);
-              setSelectLongPressTimer(null);
+          onMouseMove={(e) => {
+            if (isPc && isSelecting) {
+              console.log('onMouseMove:', e);
+              onTouchMove(e);
             }
           }}
+          onMouseUp={(e) => {
+            if (isPc) {
+              onTouchEnd(e);
+            }
+          }}
+          // onClick={(e) => {
+          //   const target = e.target as HTMLElement;
+          //   if (target.classList.contains('pdf_page_word')) {
+          //     tapWord$.next(target.textContent || '');
+          //   }
+          // }}
         >
           <InnerPdf scale={scale} filePath={filePath} onGetNumPages={_setNumPages} onGetPageLoaded={_setPageLoaded} pageRef={pageRef} pageNumber={pageNumber} fitWidth={fitWidth} pageWidth={pageWidth} fitHeight={fitHeight} pageHeight={pageHeight} onGetWordIndexMap={_onGetWordIndexMap} />
         </div>
@@ -623,17 +657,17 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
         setColor(colorEditing);
         setBackgroundColor(backgroundColorEditing);
       }}
-      okText="save"
-      onCancel={() => {
-        setIsModalVisible(false);
-      }}
+        okText="save"
+        onCancel={() => {
+          setIsModalVisible(false);
+        }}
       >
         <div>文本颜色：</div>
         <HexColorPicker color={colorEditing} onChange={setColorEditing} />
         <div>背景颜色：</div>
         <HexColorPicker color={backgroundColorEditing} onChange={setBackgroundColorEditing} />
         <div>效果：</div>
-        <div style={{color: colorEditing, backgroundColor: backgroundColorEditing}}>Hello World!</div>
+        <div style={{ color: colorEditing, backgroundColor: backgroundColorEditing }}>Hello World!</div>
       </Modal>
     </div>
   );

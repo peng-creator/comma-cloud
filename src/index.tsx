@@ -19,6 +19,8 @@ import { App } from './blocks/App/App';
 import './service/ws/ws';
 // import reportWebVitals from './reportWebVitals';
 import './App.global.css';
+import Cookies from 'js-cookie';
+
 defineCustomElements(window);
 
 const root = ReactDOM.createRoot(
@@ -30,7 +32,14 @@ root.render(
   </React.StrictMode>
 );
 
-
+const sessionIdFromCookie = Cookies.get('sessionId');
+if (sessionIdFromCookie) {
+  localStorage.setItem('sessionId', sessionIdFromCookie);
+}
+const sessionIdFromStorage = localStorage.getItem('sessionId'); 
+if (sessionIdFromStorage) {
+    Cookies.set('sessionId', sessionIdFromStorage);
+}
 // If you want to start measuring performance in your app, pass a function
 // to log results (for example: reportWebVitals(console.log))
 // or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals

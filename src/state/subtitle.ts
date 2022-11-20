@@ -6,7 +6,7 @@ export type StandaloneSubtitleProps = {
   filePath: string; 
   subtitles$: BehaviorSubject<Subtitle[]>;
   seekTo: (time: number) => void;
-  isPlaying$: BehaviorSubject<boolean>;
+  playing$: BehaviorSubject<boolean>;
   loopingSubtitle$: BehaviorSubject<Subtitle | null>;
   scrollToIndex$: BehaviorSubject<number>;
   intensive$: BehaviorSubject<boolean>;

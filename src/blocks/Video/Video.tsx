@@ -1,14 +1,3 @@
-import {
-  Button,
-  Col,
-  Dropdown,
-  List,
-  Menu,
-  message,
-  Popconfirm,
-  Switch,
-  Tooltip,
-} from "antd";
 import React, {
   CSSProperties,
   useCallback,
@@ -29,8 +18,28 @@ import { SubtitleComponent } from "../Subtitle/Subtitle";
 import { remoteControlInput$, remoteControlOutput$ } from "../../state/remoteContol";
 import { saveRecord } from "../../service/http/Records";
 import { playSubtitleRecord$ } from "../../state/video";
-import { defaultIntensiveStrategy } from "../../type/SubtitlePlayStrategy";
-import { useBehavior, useDebouncedEffect } from "../../state";
+import { defaultIntensiveStrategy, SubtitlePlayStrategy } from "../../type/SubtitlePlayStrategy";
+import { useStore } from "../../store";
+import { message } from "antd";
+
+type VideoState = {
+  subtitles: Subtitle[];
+  player: ReactPlayer | null;
+  playing: boolean;
+  loopingSubtitle: Subtitle | null;
+  scrollToIndex: number;
+  videoFocus: boolean;
+  ready: boolean;
+  outSideSubtitlePlayed: boolean;
+  startPublishingData: boolean;
+  intensive: boolean;
+  intensiveStrategy: SubtitlePlayStrategy;
+  intensiveStrategyIndex: number;
+  intensiveSubtitle: Subtitle | null;
+  playbackRate: number;
+  intensiveTimer: any;
+  intensiveSwithing: boolean;
+};
 
 export const Video = ({
   filePath,
@@ -47,117 +56,82 @@ export const Video = ({
   title: string;
   layoutMode: number;
 }) => {
-  const [subtitles, _setSubtitles] = useState([] as Subtitle[]);
+  let store = useStore<VideoState>({
+    subtitles: [], 
+    player: null,
+    playing: false,
+    loopingSubtitle: null,
+    scrollToIndex: 0,
+    videoFocus: false,
+    ready: false,
+    outSideSubtitlePlayed: false,
+    startPublishingData: false,
+    intensive: true,
+    intensiveStrategy: defaultIntensiveStrategy,
+    intensiveStrategyIndex: 0,
+    intensiveSubtitle: null,
+    playbackRate: 1,
+    intensiveTimer: null,
+    intensiveSwithing: false,
+  });
+
   const ref = useRef<ReactPlayer | null>(null);
-  const player = ref.current;
-  const [playing, setPlaying] = useState(false);
-  const [subtitleLooping, _setSubtitleLooping] = useState<Subtitle | null>(null);
-  const [scrollToIndex, _setScrollToIndex] = useState(0);
+  store.player = ref.current;
+
   const wrapperRef = useRef<HTMLDivElement | null>(null);
-  const [videoFocus, setVideoFocus] = useState(false);
-  const [ready, setReady] = useState(false);
-  const [outSideSubtitlePlayed, setOutSideSubtitlePlayed] = useState(false);
 
-  const [subtitles$] = useState(new BehaviorSubject<Subtitle[]>([]));
-  const [loopingSubtitle$] = useState(
-    new BehaviorSubject<Subtitle | null>(null)
-  );
-  const [isPlaying$] = useState(
-    new BehaviorSubject<boolean>(playing)
-  );
-  const [scrollToIndex$] = useState(new BehaviorSubject<number>(0));
-  const [startPublishingData, setStartPublishingData] = useState(false);
-  const [intensive, setIntensive] = useState(true);
-  const [intensive$] = useState(new BehaviorSubject(true));
-  const [intensiveStrategy, setIntensiveStrategy] = useState(defaultIntensiveStrategy);
-  const [intensiveStrategyIndex$] = useState(new BehaviorSubject(0));
-  const [seekingBack, setSeekingBack] = useState(false);
-  const [intensiveStrategyIndex, setIntensiveStrategyIndex] = useBehavior(intensiveStrategyIndex$, 0);
-  const [intensiveSubtitle, setIntensiveSubtitle] = useState<Subtitle | null>(null);
-  const [playbackRate, setPlaybackRate] = useState(1);
-  const [intensiveTimer, setIntensiveTimer] = useState<any>(null);
-
-  const seekTo = useCallback((time: number, unit?: "seconds" | "fraction" ) => {
-    player?.seekTo(time, unit);
-    setSeekingBack(true);
-  }, [player]);
-
-  useEffect(() => {
-    if (seekingBack) {
-      const timer = setTimeout(() => {setSeekingBack(false)}, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [seekingBack])
+  const seekTo = (time: number, unit: "seconds" | "fraction" = "seconds") => {
+    store.player?.seekTo(time, unit);
+  };
 
   const setSubtitleLooping = (sub: Subtitle | null) => {
-    _setSubtitleLooping(sub);
+    store.loopingSubtitle = sub;
     if (sub !== null) {
-      setPlaybackRate(1);
-      setIntensiveSubtitle(null);
-      console.log(`setIntensiveStrategyIndex(0)`);
-      setIntensiveStrategyIndex(0);
-      setIntensive(false);
+      store.playbackRate = 1;
+      store.intensiveSubtitle = null;
+      store.intensiveStrategyIndex = 0;
+      store.intensive = false;
     }
   };
 
   const setScrollToIndex = useCallback((index: number, needToSeek = true) => {
-    setIntensiveSubtitle(null);
-    _setScrollToIndex(index);
-    const sub = subtitles[index];
+    store.intensiveSubtitle = null;
+    store.scrollToIndex = index;
+    console.log('debug setScrollToIndex: ', store.scrollToIndex);
+    const sub = store.subtitles[index];
     if (sub && needToSeek) {
       seekTo(sub.start / 1000);
     }
-    if (intensive) {
-      console.log(`debug-001, setIntensiveSubtitle(sub):`, sub);
-      setIntensiveSubtitle(sub);
+    if (store.intensive) {
+      store.intensiveSubtitle = sub;
     }
-    console.log(`debug-001, setIntensiveStrategyIndex(0)`);
-    setIntensiveStrategyIndex(0);
-    setPlaybackRate(1);
-    console.log(`debug-001, clearInterval: ${intensiveTimer}`);
-    clearInterval(intensiveTimer);
-  }, [subtitles, intensive, seekTo, intensiveTimer]); 
+    store.intensiveSwithing = false;
+    store.intensiveStrategyIndex = 0;
+    store.playbackRate = 1;
+    console.log('debug onScrollToIndexChange, store.intensiveStrategyIndex:', store.intensiveStrategyIndex, ', store.playbackRate:', store.playbackRate);
+    clearInterval(store.intensiveTimer);
+  }, [store.subtitles, store.intensive, seekTo, store.intensiveTimer]); 
 
   useEffect(() => {
-    intensive$.next(intensive);
-  }, [intensive, intensive$]);
-
-  useEffect(() => {
-    if (!subtitles || subtitles.length === 0 || !subtitles[scrollToIndex]) {
+    if (!store.subtitles || store.subtitles.length === 0 || !store.subtitles[store.scrollToIndex]) {
       return;
     }
     saveRecord({
       file: filePath,
-      progress: subtitles[scrollToIndex],
+      progress: store.subtitles[store.scrollToIndex],
       type: 'video',
     });
     playSubtitleRecord$.next({
-      ...subtitles[scrollToIndex],
+      ...store.subtitles[store.scrollToIndex],
       file: filePath,
       zoneId,
     });
-  }, [scrollToIndex, filePath, subtitles, zoneId]);
-
-  useEffect(() => {
-    subtitles$.next(subtitles);
-  }, [subtitles, subtitles$]);
-
-  useEffect(() => {
-    loopingSubtitle$.next(subtitleLooping);
-  }, [subtitleLooping, loopingSubtitle$]);
-
-  useEffect(() => {
-    isPlaying$.next(playing);
-  }, [isPlaying$, playing]);
-
-  useEffect(() => {
-    scrollToIndex$.next(scrollToIndex);
-  }, [scrollToIndex, scrollToIndex$]);
+  }, [store.scrollToIndex, filePath, store.subtitles, zoneId]);
 
 
   const setSubtitles = useCallback((subtitles: Subtitle[]) => {
     if (subtitles && subtitles.length > 0) {
-      _setSubtitles(subtitles);
+      store.subtitles = subtitles;
       saveSubtitlesOfVideo(filePath, subtitles);
     }
   }, [filePath]);
@@ -167,102 +141,102 @@ export const Video = ({
       toZoneId: zoneId,
       action: 'setSubtitles',
       data: {
-        subtitles,
+        subtitles: store.subtitles,
       }
     });
-  }, [zoneId, subtitles]);
+  }, [zoneId, store.subtitles]);
 
   useEffect(() => {
-    if (!startPublishingData) {
+    if (!store.startPublishingData) {
       return;
     }
     publishSubtitles();
-  }, [startPublishingData, publishSubtitles])
+  }, [store.startPublishingData, publishSubtitles])
 
   const publishScrollToIndex = useCallback(() => {
     remoteControlInput$.next({
       toZoneId: zoneId,
       action: 'scrollToIndex',
       data: {
-        nextScrollToIndex: scrollToIndex,
+        nextScrollToIndex: store.scrollToIndex,
       }
     });
-  }, [zoneId, scrollToIndex]);
+  }, [zoneId, store.scrollToIndex]);
 
   useEffect(() => {
-    if (!startPublishingData) {
+    if (!store.startPublishingData) {
       return;
     }
     publishScrollToIndex();
-  }, [startPublishingData, publishScrollToIndex])
+  }, [store.startPublishingData, publishScrollToIndex])
 
   const publishSubtitleLooping = useCallback(() => {
     remoteControlInput$.next({
       toZoneId: zoneId,
       action: 'loopingSubtitle',
       data: {
-        subtitle: subtitleLooping,
+        subtitle: store.loopingSubtitle,
       }
     });
-  }, [zoneId, subtitleLooping]);
+  }, [zoneId, store.loopingSubtitle]);
 
   useEffect(() => {
-    if (!startPublishingData) {
+    if (!store.startPublishingData) {
       return;
     }
     publishSubtitleLooping();
-  }, [startPublishingData, publishSubtitleLooping,])
+  }, [store.startPublishingData, publishSubtitleLooping,])
 
   const publishPlayingChange = useCallback(() => {
     remoteControlInput$.next({
       toZoneId: zoneId,
       action: 'playingChange',
       data: {
-        playing
+        playing: store.playing
       }
     }) 
-  }, [zoneId, playing]);
+  }, [zoneId, store.playing]);
 
   useEffect(() => {
-    if (!startPublishingData) {
+    if (!store.startPublishingData) {
       return;
     }
     publishPlayingChange();
-  }, [startPublishingData, publishPlayingChange]);
+  }, [store.startPublishingData, publishPlayingChange]);
 
   const publishIntensiveChange = useCallback(() => {
     remoteControlInput$.next({
       toZoneId: zoneId,
       action: 'intensiveChange',
       data: {
-        intensive
+        intensive: store.intensive
       }
     })
-  }, [zoneId, intensive]);
+  }, [zoneId, store.intensive]);
 
   useEffect(() => {
-    if (!startPublishingData) {
+    if (!store.startPublishingData) {
       return;
     }
     publishIntensiveChange();
-  }, [startPublishingData, publishIntensiveChange]);
+  }, [store.startPublishingData, publishIntensiveChange]);
 
   const publishIntensiveStrategyIndexChange = useCallback(() => {
     remoteControlInput$.next({
       toZoneId: zoneId,
       action: 'intensiveStrategyIndexChange',
       data: {
-        intensiveStrategyIndex
+        intensiveStrategyIndex: store.intensiveStrategyIndex
       }
     });
-  }, [zoneId, intensiveStrategyIndex]);
+  }, [zoneId, store.intensiveStrategyIndex]);
 
   useEffect(() => {
-    if (!startPublishingData) {
+    if (!store.startPublishingData) {
       return;
     }
     publishIntensiveStrategyIndexChange();
-  }, [startPublishingData, publishIntensiveStrategyIndexChange]);
+  }, [ store.startPublishingData, publishIntensiveStrategyIndexChange]);
 
   useEffect(() => {
     const sp = remoteControlOutput$.subscribe({
@@ -271,7 +245,8 @@ export const Video = ({
           return;
         }
         if (action === 'seekTime') {
-          player?.seekTo(data.time, 'seconds');
+          console.log('debug seeking');
+          store.player?.seekTo(data.time, 'seconds');
         }
         if (action === 'setSubtitles') {
           setSubtitles(data.nextSubtitles);
@@ -286,20 +261,20 @@ export const Video = ({
             setSubtitleLooping(null);
             return;
           }
-          if (subtitleLooping === null || nextLoopingSubtitle.start !== subtitleLooping.start && data.subtitle.end !== subtitleLooping.end) {
+          if ( store.loopingSubtitle === null || nextLoopingSubtitle.start !==  store.loopingSubtitle.start && data.subtitle.end !==  store.loopingSubtitle.end) {
             setSubtitleLooping(nextLoopingSubtitle);
           }
         }
         if (action === 'playingChange') {
-          setPlaying(data.playing)
+          store.playing = data.playing;
         }
         if (action === 'intensiveChange') {
-          setIntensive(data.intensive);
+          store.intensive = data.intensive;
         }
         if (action === 'startControl') {
           console.log('new remote controller, start to feed data');
           // feed the data to remote contoller
-          setStartPublishingData(true);
+          store.startPublishingData = true;
           publishSubtitles();
           publishScrollToIndex();
           publishSubtitleLooping();
@@ -311,7 +286,7 @@ export const Video = ({
 
     });
     return () => sp.unsubscribe();
-  }, [player, 
+  }, [ store.player, 
       zoneId, 
       publishSubtitles,
       publishScrollToIndex,
@@ -322,7 +297,7 @@ export const Video = ({
     ]);
 
   useEffect(() => {
-    if (outSideSubtitlePlayed) {
+    if (store.outSideSubtitlePlayed) {
       // 此hook自动播放props传入的subtitle, 但只自动播放一次。
       return;
     }
@@ -330,47 +305,52 @@ export const Video = ({
     if (player === null) {
       return;
     }
-    if (!ready) {
+    if (!store.ready) {
       return;
     }
     if (subtitle) {
+      console.log('debug seeking');
       seekTo(subtitle.start / 1000, "seconds");
       const currentTime = subtitle.start + 1;
-      const subtileFound = subtitles.find(
-        (s) => s.start <= currentTime && s.end >= currentTime
+      const subtileFound = store.subtitles.find(
+        (s: Subtitle) => s.start <= currentTime && s.end >= currentTime
       );
       if (subtileFound) {
-        const nextScrollToIndex = subtitles.findIndex(
-          (s) => s === subtileFound
+        const nextScrollToIndex = store.subtitles.findIndex(
+          (s: Subtitle) => s === subtileFound
         );
         console.log('setScrollToIndex');
         setScrollToIndex(nextScrollToIndex);
         // setSubtitleLooping(subtileFound);
-        setPlaying(true);
-        setOutSideSubtitlePlayed(true);
+        store.playing = true;
+        store.outSideSubtitlePlayed = true;
       }
     }
-  }, [subtitle, outSideSubtitlePlayed, ref, ready, subtitles]);
+  }, [subtitle, store.outSideSubtitlePlayed, ref, store.ready, store.subtitles]);
 
   useEffect(() => {
     const player = ref.current;
     if (player === null) {
       return;
     }
-    if (playing && subtitleLooping !== null) {
+    if (store.playing && store.loopingSubtitle !== null) {
       let timer = setInterval(() => {
         const currentTime = player.getCurrentTime() * 1000;
         console.log("while looping, currentTime: ", currentTime);
-        if (currentTime >= subtitleLooping.end || currentTime <= subtitleLooping.start - 1000) {
-          console.log('seekTo to loop start:', subtitleLooping.start / 1000);
-          seekTo(subtitleLooping.start / 1000, "seconds");
+        if (store.loopingSubtitle === null) {
+          return;
+        }
+        if (currentTime >= store.loopingSubtitle.end || currentTime <= store.loopingSubtitle.start - 1000) {
+          console.log('seekTo to loop start:', store.loopingSubtitle.start / 1000);
+          console.log('debug seeking');
+          seekTo(store.loopingSubtitle.start / 1000, "seconds");
         }
       }, 50);
       return () => {
         clearInterval(timer);
       };
     }
-  }, [playing, ref, subtitleLooping]);
+  }, [store.playing, ref, store.loopingSubtitle]);
 
   useEffect(() => {
     console.log("effect executed");
@@ -378,153 +358,152 @@ export const Video = ({
     if (player === null) {
       return;
     }
-    if (subtitleLooping) {
-      console.log("subtitleLooping === true");
+    if (store.loopingSubtitle) {
+      console.log("loopingSubtitle === true");
       return;
     }
-    if (intensive) {
+    if (store.intensive) {
       return;
     }
-    if (!playing) {
+    if (!store.playing) {
       console.log("playing === false");
       return;
     }
-    console.log("playing:", playing);
+    console.log("playing:", store.playing);
     console.log("playing && autoPlayBySubtitle === true");
-    setPlaybackRate(1);
-    let currentSubtitle: Subtitle | null = null;
+    store.playbackRate = 1;
     let timer = setInterval(() => {
-      console.log("timer runing");
+      const currentSubtitle: Subtitle = store.subtitles[store.scrollToIndex];
       const currentTime = player.getCurrentTime() * 1000;
-      if (currentSubtitle === null) {
-        console.log("trying to find currentSubtitle");
-        const subtileFound = subtitles.find(
-          (s) => s.start <= currentTime && s.end >= currentTime
-        );
-        if (subtileFound) {
-          console.log("subtileFound:", subtileFound);
-          currentSubtitle = subtileFound;
-          console.log('setScrollToIndex');
-          _setScrollToIndex(subtitles.findIndex((s) => s === currentSubtitle));
-          if (intensiveSubtitle !== subtileFound) {
-            setIntensiveSubtitle(currentSubtitle);
-            setIntensiveStrategyIndex(0);
-          }
-        }
+      const subtileFound = store.subtitles.find(
+        (s: Subtitle) => s.start <= currentTime && s.end > currentTime
+      );
+      if (subtileFound === currentSubtitle) {
         return;
       }
-      if (
-        currentTime < currentSubtitle.start - 1 ||
-        currentTime > currentSubtitle.end + 1
-      ) {
-        console.log("currentTime is not in the period of currentSubtitle.");
-        console.log("currentTime:", currentTime);
-        console.log("currentSubtitle:", currentSubtitle);
-        console.log("set currentSubtitle to null");
-        currentSubtitle = null;
+      if (subtileFound) {
+        console.log("subtileFound:", subtileFound);
+        const nextIndex = store.subtitles.findIndex((s: Subtitle) => s === subtileFound);
+        if (store.scrollToIndex > nextIndex) {
+          return;
+        }
+        store.scrollToIndex = nextIndex;
+        console.log('debug setScrollToIndex: ', store.scrollToIndex);
+        if (store.intensiveSubtitle !== subtileFound) {
+          store.intensiveSubtitle = currentSubtitle;
+          store.intensiveStrategyIndex = 0;
+        }
       }
     }, 50);
     return () => {
       console.log("clear timer");
       clearInterval(timer);
     };
-  }, [playing, ref, subtitles, subtitleLooping, intensive, intensiveSubtitle]);
+  }, [store.playing, ref, store.subtitles, store.loopingSubtitle, store.intensive, store.intensiveSubtitle]);
 
   useEffect(() => {
-    console.log('debug-001, :', playing, ref, subtitles, subtitleLooping, intensive, intensiveStrategy, intensiveStrategyIndex, seekingBack, intensiveSubtitle);
+    console.log('debug-001, :', store.playing, ref, store.subtitles, store.loopingSubtitle, store.intensive, store.intensiveStrategy, store.intensiveStrategyIndex, store.intensiveSubtitle);
     // 精读 effect
     const player = ref.current;
     if (player === null) {
       return;
     }
-    if (subtitleLooping) {
+    if (store.loopingSubtitle) {
       return;
     }
-    if (!playing) {
+    if (!store.playing) {
       return;
     }
-    if (!intensive) {
-      return;
-    }
-    if (seekingBack) {
-      console.log('seekingBack, return intensive!!');
+    if (!store.intensive) {
       return;
     }
     const findSubtitleByTime = (time: number) => {
-      return subtitles.find(
-        (s) => s.start <= time && s.end >= time
+      return store.subtitles.find(
+        (s: Subtitle) => s.start <= time && s.end > time
       ) || null;
     }
     let timer = setInterval(() => {
       const currentTime = player.getCurrentTime() * 1000;
-      if (intensiveSubtitle === null) {
-        const subtileFound = findSubtitleByTime(currentTime);
+      if (store.intensiveSubtitle === null) {
+        let subtileFound = findSubtitleByTime(currentTime);
+        const currentSubtitle = store.subtitles[store.scrollToIndex];
         if (subtileFound) {
-          console.log('setScrollToIndex');
-          setScrollToIndex(subtitles.findIndex((s) => s === subtileFound), false);
-          const nextIntensiveStrategyIndex = 0;
-          let currentPlayHow = intensiveStrategy[nextIntensiveStrategyIndex];
-          setPlaybackRate(currentPlayHow.speed);
-          console.log(`setIntensiveStrategyIndex(${nextIntensiveStrategyIndex})`);
-          setIntensiveStrategyIndex(nextIntensiveStrategyIndex);
-          console.log('set intensiveStrategyIndex to 0, playing:', playing);
+          if (subtileFound.end > currentSubtitle.start && subtileFound.start < currentSubtitle.start) { // 两字幕出现交叉
+            subtileFound = currentSubtitle;
+          }
+          store.intensiveSubtitle = subtileFound;
         }
         return;
       }
       console.log('check intensiveStrategyIndex, currentTime:', currentTime);
-      if (currentTime > intensiveSubtitle.end - 1 && intensiveStrategyIndex < intensiveStrategy.length - 1) {
-        console.log('debug-001, currentTime:', currentTime, ' intensiveSubtitle:', intensiveSubtitle, ' in timer:', timer);
-        console.log('intensiveStrategyIndex:', intensiveStrategyIndex);
-        const nextIntensiveStrategyIndex = intensiveStrategyIndex + 1;
-        console.log(`setIntensiveStrategyIndex(${nextIntensiveStrategyIndex})`);
-        setIntensiveStrategyIndex(nextIntensiveStrategyIndex);
-        let currentPlayHow = intensiveStrategy[nextIntensiveStrategyIndex];
-        setPlaybackRate(currentPlayHow.speed);
-        seekTo(intensiveSubtitle.start / 1000);
+      const outOfIntensiveTime = currentTime > store.intensiveSubtitle.end - 1;
+      const intensiveStrategyNotFinished = store.intensiveStrategyIndex < store.intensiveStrategy.length - 1;
+      if (outOfIntensiveTime && intensiveStrategyNotFinished) { // 离开精听片段，但策略未播放完毕
+        const nextIntensiveStrategyIndex = store.intensiveStrategyIndex + 1;
+        store.intensiveStrategyIndex = nextIntensiveStrategyIndex;
+        let currentPlayHow = store.intensiveStrategy[nextIntensiveStrategyIndex];
+        store.playbackRate = currentPlayHow.speed;
+        seekTo(store.intensiveSubtitle.start / 1000);
         return;
       }
+      const duringIntensive = currentTime < store.intensiveSubtitle.end && currentTime > store.intensiveSubtitle.start; 
+      if (duringIntensive) { // 进入当前精听片段
+        if (store.intensiveSwithing) {
+          console.log('intensiveSwithing finished');
+          store.intensiveSwithing = false; // 切换完毕
+          const nextIntensiveStrategyIndex = 0;
+          let currentPlayHow = store.intensiveStrategy[nextIntensiveStrategyIndex];
+          store.playbackRate = currentPlayHow.speed;
+          store.intensiveStrategyIndex = nextIntensiveStrategyIndex;
+          store.scrollToIndex += 1;
+        }
+      }
       if (
-        currentTime < intensiveSubtitle.start - 1 ||
-        currentTime > intensiveSubtitle.end + 1
+        currentTime < store.intensiveSubtitle.start - 1 ||
+        currentTime > store.intensiveSubtitle.end + 1
       ) {
-        console.log('check intensiveStrategyIndex, set currentSubtitle as null, intensiveStrategyIndex:', intensiveStrategyIndex, "currentTime > currentSubtitle.end - 1", currentTime > intensiveSubtitle.end - 1, '&& intensiveStrategyIndex < intensiveStrategy.length - 1:', intensiveStrategyIndex < intensiveStrategy.length - 1);
-        if (intensiveStrategyIndex < intensiveStrategy.length - 1) {
+        if (store.intensiveStrategyIndex < store.intensiveStrategy.length - 1) {
           return;
         }
-        setIntensiveSubtitle(null);
+        store.intensiveSubtitle = store.subtitles[store.scrollToIndex + 1];
+        console.log('intensiveSwithing started');
+        store.intensiveSwithing = true; 
       }
     }, 50);
     console.log('debug-001, setInterval timer:', timer);
-    setIntensiveTimer(timer);
+    store.intensiveTimer = timer;
     return () => {
       console.log('debug-001, clearInterval timer:', timer);
       clearInterval(timer);
     };
-  }, [playing, ref, subtitles, subtitleLooping, intensive, intensiveStrategy, intensiveStrategyIndex, seekingBack, intensiveSubtitle]);
+  }, [store.playing, ref, store.subtitles, store.loopingSubtitle, store.intensive, store.intensiveStrategy, store.intensiveStrategyIndex, store.intensiveSubtitle, store.intensiveSwithing]);
 
   useEffect(() => {
     getSubtitlesOfVideo(filePath).then((subtitles) => {
       console.log("got subtitles of ", filePath, " ==> ", subtitles);
-      _setSubtitles(subtitles || []);
+      store.subtitles = subtitles || [];
     });
   }, [filePath]);
 
   const url = `http://${host}:8080/resource` + filePath;
   console.log("play url:", url);
 
+  console.log('render video, player:', store.player);
+
   return (
     <div
       style={{
         ...style,
         display: "flex",
-        flexDirection: "column",
+        flexDirection: layoutMode === 0 ? "column" : "row",
         alignItems: "center",
-        justifyContent: layoutMode === 0 ? 'flex-start' : 'center'
+        justifyContent: layoutMode === 0 ? 'flex-start' : 'space-between',
+        overflow: 'hidden',
       }}
       ref={wrapperRef}
     >
       <Resizable
-        maxWidth="100%"
+        maxWidth={layoutMode === 0 ? '100%' : '70%'}
         minWidth="356px"
         minHeight="200px"
         handleStyles={{
@@ -591,8 +570,8 @@ export const Video = ({
           ),
         }}
         enable={{
-          right: videoFocus && true,
-          left: videoFocus && true,
+          right: store.videoFocus && true,
+          left: store.videoFocus && true,
         }}
         defaultSize={{
           width: "100%",
@@ -603,19 +582,19 @@ export const Video = ({
           style={{ width: "100%", position: "relative", paddingTop: "56.25%" }}
           tabIndex={0}
           onFocus={() => {
-            setVideoFocus(true);
+            store.videoFocus = true;
           }}
           onBlur={() => {
-            setVideoFocus(false);
+            store.videoFocus = false;
           }}
         >
           <ReactPlayer
             ref={ref}
             url={url}
-            playing={playing}
-            playbackRate={playbackRate}
+            playing={store.playing}
+            playbackRate={store.playbackRate}
             onPlaybackRateChange={(rate: number) => {
-              setPlaybackRate(rate);
+              store.playbackRate = rate;
             }}
             width="100%"
             height="100%"
@@ -626,10 +605,10 @@ export const Video = ({
               minHeight: "200px",
             }}
             onReady={() => {
-              setReady(true);
+              store.ready = true;
             }}
-            onPause={() => setPlaying(false)}
-            onPlay={() => setPlaying(true)}
+            onPause={() => store.playing = false}
+            onPlay={() => store.playing  = true}
             playsinline
             loop
             controls
@@ -642,37 +621,51 @@ export const Video = ({
       </Resizable>
       <div style={{
         width: '100%',
+        minWidth: '200px',
         flexGrow: 1,
-        display: layoutMode === 0 ? 'flex' : 'none',
+        height: '100%',
+        display: 'flex',
       }}>
-        {player !== null && (
+        {store.player !== null && (
           <SubtitleComponent
-            layoutMode={layoutMode}
+            layoutMode={0}
             fromZoneId={zoneId}
             title={title}
             filePath={filePath}
-            subtitles$={subtitles$}
-            isPlaying$={isPlaying$}
-            seekTo={(time) => seekTo(time, 'seconds')}
-            loopingSubtitle$={loopingSubtitle$}
-            scrollToIndex$={scrollToIndex$}
-            intensive$={intensive$}
-            intensiveStrategyIndex$={intensiveStrategyIndex$}
+            subtitles$={store.subtitles$}
+            playing$={store.playing$}
+            seekTo={(time) => {
+              console.log('debug seeking:', time);
+              seekTo(time, 'seconds');
+            }}
+            loopingSubtitle$={store.loopingSubtitle$}
+            scrollToIndex$={store.scrollToIndex$}
+            intensive$={store.intensive$}
+            intensiveStrategyIndex$={store.intensiveStrategyIndex$}
             onSubtitlesChange={(nextSubtitles: Subtitle[]) => {
               setSubtitles(nextSubtitles);
             }}
             onScrollToIndexChange={(nextScrollToIndex: number) => {
-              console.log('setScrollToIndex');
+              console.log('debug onScrollToIndexChange:', nextScrollToIndex);
               setScrollToIndex(nextScrollToIndex);
             }}
             onLoopingSubtitleChange={(subtitle: Subtitle | null) => {
               setSubtitleLooping(subtitle);
+              store.intensive = false;
+              store.intensiveStrategyIndex = 0;
+              store.intensiveSubtitle = null;
             }}
             onPlayingChange={(playing: boolean) => {
-              setPlaying(playing);
+              store.playing = playing;
             }}
             onIntensiveChange={(intensive) => {
-              setIntensive(intensive);
+              store.intensive = intensive;
+              store.intensiveStrategyIndex = 0;
+              if (store.intensive) {
+                store.loopingSubtitle = null;
+              } else {
+                store.intensiveSubtitle = null;
+              }
             }}
           />
         )}

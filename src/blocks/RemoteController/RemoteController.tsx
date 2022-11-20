@@ -32,7 +32,7 @@ export const RemoteController = ({
   const [scrollToIndex$, setScrollToIndex$] = useState(new BehaviorSubject<number>(-1));
   const [intensive$] = useState(new BehaviorSubject(true));
   const [intensiveStrategyIndex$] = useState(new BehaviorSubject(0));
-  const [isPlaying$] = useState(new BehaviorSubject(false));
+  const [playing$] = useState(new BehaviorSubject(false));
   
   useEffect(() => {
     if (!zone) {
@@ -61,7 +61,7 @@ export const RemoteController = ({
           loopingSubtitle$.next(data.subtitle);
         }
         if (action === 'playingChange') {
-          isPlaying$.next(data.playing);
+          playing$.next(data.playing);
         }
         if (action === 'intensiveChange') {
           intensive$.next(data.intensive);
@@ -72,7 +72,7 @@ export const RemoteController = ({
       },
     });
     return () => sp.unsubscribe();
-  }, [loopingSubtitle$, isPlaying$, scrollToIndex$, subtitles$, intensive$, intensiveStrategyIndex$, zone]);
+  }, [loopingSubtitle$, playing$, scrollToIndex$, subtitles$, intensive$, intensiveStrategyIndex$, zone]);
 
   return <div
     style={{
@@ -141,7 +141,7 @@ export const RemoteController = ({
             }
           });
         }}
-        isPlaying$={isPlaying$}
+        playing$={playing$}
         loopingSubtitle$={loopingSubtitle$}
         intensive$={intensive$}
         intensiveStrategyIndex$={intensiveStrategyIndex$}
@@ -183,7 +183,7 @@ export const RemoteController = ({
               playing,
             }
           });
-          isPlaying$.next(playing);
+          playing$.next(playing);
         }}
         onIntensiveChange={(intensive: boolean) => {
           remoteControlInput$.next({

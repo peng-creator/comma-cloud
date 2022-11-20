@@ -296,7 +296,7 @@ export const App = () => {
   }, []);
 
   useEffect(() => {
-    playSubtitleRecord$.subscribe({
+    const sp = playSubtitleRecord$.subscribe({
       next(subtitle) {
         if (!subtitle) {
           return;
@@ -308,7 +308,8 @@ export const App = () => {
         }
         saveWorkZones(currentNode, zones);
       }
-    })
+    });
+    return () => sp.unsubscribe();
   }, [zones, currentNode]);
 
   return (
@@ -404,6 +405,7 @@ export const App = () => {
                   } else {
                     setFullScreenZoneId(zone.id);
                   }
+                  message.info(fullScreenZoneId ? '已退出最大化' : '已最大化窗口');
                 }}>
                   <Icon style={{ position: 'relative', top: '-1px' }} icon={zone.id === fullScreenZoneId ? "minimize" : "maximize"} size={18} color="#5f6b7c" />
                 </Button>,
@@ -440,7 +442,7 @@ export const App = () => {
         minWidth: '320px',
         padding: '14px 0 5px',
         bottom: 0,
-        zIndex: 4,
+        zIndex: 6,
         borderRadius: '12px 12px 0 0',
         margin: '0 14px',
       }}>
@@ -532,7 +534,7 @@ export const App = () => {
             style={{ color: '#ccc', width: '33%', height: '40px' }}
             onClick={() => {
               addZone({
-                title: "复习",
+                title: "SuperMemo",
                 type: "cardReviewer",
                 data: {
                 },
@@ -540,7 +542,7 @@ export const App = () => {
               setShowAddZone(false);
             }}
           >
-            复习
+            SuperMemo
           </Button>
           <Button
             type='ghost'

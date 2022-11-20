@@ -42,8 +42,7 @@ const newConnection = ({
     }, 10000);
   };
   
-  ws.onmessage = function (evt) 
-  { 
+  ws.onmessage = (evt) => { 
     const msg = evt.data;
     if (msg === '__pong__') {
       clearTimeout(timeoutTimer);
@@ -52,11 +51,16 @@ const newConnection = ({
     onMessage(msg);
   };
     
-  ws.onclose = function() { 
+  ws.onclose = () => { 
       console.log("websoket 连接已关闭..."); 
       clearInterval(pingTimer);
       close();
   };
+
+  ws.onerror = (error) => {
+    console.log('websoket 连接失败：', error);
+  };
+  
   return ws;
 }
 

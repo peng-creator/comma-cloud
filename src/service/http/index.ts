@@ -17,7 +17,7 @@ export const axiosInstancePromise = Promise.resolve(instance);
 
 export const reportError = async (error: any) => {
   const axios = await axiosInstancePromise;
-  return axios.post('/error', error);
+  return axios.post('/error', {error}, );
 }
 
 window.addEventListener('error', (event) => {
