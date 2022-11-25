@@ -375,16 +375,17 @@ export const Video = ({
     let timer = setInterval(() => {
       const currentSubtitle: Subtitle = store.subtitles[store.scrollToIndex];
       const currentTime = player.getCurrentTime() * 1000;
+      const isPlayCurrentSubtitle = currentSubtitle && currentSubtitle.start <= currentTime && currentSubtitle.end > currentTime;
+      if (isPlayCurrentSubtitle) {
+        return;
+      }
       const subtileFound = store.subtitles.find(
         (s: Subtitle) => s.start <= currentTime && s.end > currentTime
       );
-      if (subtileFound === currentSubtitle) {
-        return;
-      }
       if (subtileFound) {
         console.log("subtileFound:", subtileFound);
         const nextIndex = store.subtitles.findIndex((s: Subtitle) => s === subtileFound);
-        if (store.scrollToIndex > nextIndex) {
+        if (store.scrollToIndex < store.subtitles.length -1 && store.scrollToIndex > nextIndex) {
           return;
         }
         store.scrollToIndex = nextIndex;
@@ -661,11 +662,8 @@ export const Video = ({
             onIntensiveChange={(intensive) => {
               store.intensive = intensive;
               store.intensiveStrategyIndex = 0;
-              if (store.intensive) {
-                store.loopingSubtitle = null;
-              } else {
-                store.intensiveSubtitle = null;
-              }
+              store.loopingSubtitle = null;
+              store.intensiveSubtitle = null;
             }}
           />
         )}

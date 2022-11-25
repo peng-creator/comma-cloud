@@ -405,7 +405,6 @@ export const App = () => {
                   } else {
                     setFullScreenZoneId(zone.id);
                   }
-                  message.info(fullScreenZoneId ? '已退出最大化' : '已最大化窗口');
                 }}>
                   <Icon style={{ position: 'relative', top: '-1px' }} icon={zone.id === fullScreenZoneId ? "minimize" : "maximize"} size={18} color="#5f6b7c" />
                 </Button>,
