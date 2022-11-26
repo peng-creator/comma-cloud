@@ -59,7 +59,7 @@ export const Video = ({
   let store = useStore<VideoState>({
     subtitles: [], 
     player: null,
-    playing: false,
+    playing: true,
     loopingSubtitle: null,
     scrollToIndex: 0,
     videoFocus: false,
@@ -400,7 +400,7 @@ export const Video = ({
       console.log("clear timer");
       clearInterval(timer);
     };
-  }, [store.playing, ref, store.subtitles, store.loopingSubtitle, store.intensive, store.intensiveSubtitle]);
+  }, [store.playing, ref.current, store.subtitles, store.loopingSubtitle, store.intensive, store.intensiveSubtitle]);
 
   useEffect(() => {
     console.log('debug-001, :', store.playing, ref, store.subtitles, store.loopingSubtitle, store.intensive, store.intensiveStrategy, store.intensiveStrategyIndex, store.intensiveSubtitle);
