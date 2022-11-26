@@ -59,7 +59,7 @@ export const Video = ({
   let store = useStore<VideoState>({
     subtitles: [], 
     player: null,
-    playing: true,
+    playing: false,
     loopingSubtitle: null,
     scrollToIndex: 0,
     videoFocus: false,
@@ -365,14 +365,14 @@ export const Video = ({
     if (store.intensive) {
       return;
     }
-    if (!store.playing) {
-      console.log("playing === false");
-      return;
-    }
     console.log("playing:", store.playing);
     console.log("playing && autoPlayBySubtitle === true");
     store.playbackRate = 1;
     let timer = setInterval(() => {
+      if (!store.playing) {
+        console.log("playing === false");
+        return;
+      }
       const currentSubtitle: Subtitle = store.subtitles[store.scrollToIndex];
       const currentTime = player.getCurrentTime() * 1000;
       const isPlayCurrentSubtitle = currentSubtitle && currentSubtitle.start <= currentTime && currentSubtitle.end > currentTime;
