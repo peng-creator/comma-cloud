@@ -66,7 +66,7 @@ export const Video = ({
     ready: false,
     outSideSubtitlePlayed: false,
     startPublishingData: false,
-    intensive: true,
+    intensive: false,
     intensiveStrategy: defaultIntensiveStrategy,
     intensiveStrategyIndex: 0,
     intensiveSubtitle: null,
