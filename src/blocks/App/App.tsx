@@ -1,4 +1,4 @@
-import { Button, Drawer, Input, message, Modal, Switch } from "antd";
+import { Button, Drawer, Input, message, Modal, Radio, Switch } from "antd";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ZoneDefinition } from "../../type/Zone";
 import { ResourceLoader } from "../ResourceLoader/ResourceLoader";
@@ -31,7 +31,7 @@ import "@blueprintjs/icons/lib/css/blueprint-icons.css";
 import { dropRight } from "lodash";
 import { Zone } from "../Zone/Zone";
 import { dragWindowEnd$, dragWindowStart$, isDraggingSplitBar$, toggleLayout$ } from "../../state/zone";
-import { AppstoreOutlined, SearchOutlined, ArrowsAltOutlined, ShrinkOutlined, DownOutlined, UpCircleOutlined, UpOutlined, SettingOutlined } from "@ant-design/icons";
+import { AppstoreOutlined, SearchOutlined, ArrowsAltOutlined, ShrinkOutlined, DownOutlined, UpCircleOutlined, UpOutlined, SettingOutlined, FontSizeOutlined } from "@ant-design/icons";
 import { search$, searchSentence } from "../../state/search";
 import { TapCache } from "../../compontent/TapCache/TapCache";
 import { StatusBar, Style } from '@capacitor/status-bar';
@@ -44,8 +44,9 @@ import { getRecords, Record } from "../../service/http/Records";
 import { expired$ } from "../../state/session";
 import ReactCodeInput from '@acusti/react-code-input';
 import { FloatDict } from "../FloatDict/FloatDict";
-import { setUserPreference, userPreference$ } from "../../state/preference";
+import { setUserPreference, UserPreference, userPreference$ } from "../../state/preference";
 import { openDir$ } from "../../state/resourceLoader";
+import { PlayHow, SubtitlePlayStrategy } from "../../type/SubtitlePlayStrategy";
 
 // iOS only
 window.addEventListener('statusTap', function () {
@@ -116,7 +117,9 @@ export const App = () => {
   const [showBottomBar, setShowBottomBar] = useState(true);
   const [showPreferenceModal, setShowPreferenceModal] = useState(false);
   const [showAccessCodeInput, setShowAccessCodeInput] = useState(false);
-  const [userPreference] = useBehavior(userPreference$, {} as any);
+  const [userPreference] = useBehavior(userPreference$, {} as UserPreference);
+  const [editStrategyIndex, setEditStrategyIndex] = useState<number | undefined>(undefined);
+  const [editStrategy, setEditStrategy] = useState<PlayHow | null>(null);
 
   useEffect(() => {
     openDir$.subscribe({
@@ -343,16 +346,16 @@ export const App = () => {
   }, [zones, currentNode]);
 
   if (showAccessCodeInput) {
-    return <div style={{display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%'}}>
+    return <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
       <div>请输入访问码</div>
-      <ReactCodeInput 
-      inputStyle={{fontSize: '14px', width: '28px', textAlign: 'center', color: 'black', border: 'none', margin: '14px', borderRadius: '5px'}}
-      type='text' fields={4} name="accessCode" inputMode="numeric" onChange={(value) => {
-        console.log('changed:', value);
-        if (value.length === 4) {
-          window.location.href = '/access/' + value;
-        }
-      }} />
+      <ReactCodeInput
+        inputStyle={{ fontSize: '14px', width: '28px', textAlign: 'center', color: 'black', border: 'none', margin: '14px', borderRadius: '5px' }}
+        type='text' fields={4} name="accessCode" inputMode="numeric" onChange={(value) => {
+          console.log('changed:', value);
+          if (value.length === 4) {
+            window.location.href = '/access/' + value;
+          }
+        }} />
     </div>
 
   }
@@ -528,25 +531,25 @@ export const App = () => {
             }}
             placeholder="搜索单词、句子"
           />
-            <Button
-              type="text"
-              style={{
-                color: '#ccc'
-              }}
-              onClick={() => {
-                setShowPreferenceModal(true);
-              }}
-            >
-              <SettingOutlined></SettingOutlined>
-            </Button>
-            {
-              showPreferenceModal && <Modal
+          <Button
+            type="text"
+            style={{
+              color: '#ccc'
+            }}
+            onClick={() => {
+              setShowPreferenceModal(true);
+            }}
+          >
+            <SettingOutlined></SettingOutlined>
+          </Button>
+          {
+            showPreferenceModal && <Modal
               width="95%"
               style={{
-                  height: '50%',
-                  top: '50%',
-                  transform: 'translate(0, -50%)',
-                  minHeight: '550px',
+                height: '50%',
+                top: '50%',
+                transform: 'translate(0, -50%)',
+                minHeight: '550px',
               }}
               footer={null}
               closable={false}
@@ -563,22 +566,117 @@ export const App = () => {
                   overflow: 'hidden',
                   color: '#ccc',
                 }}>
-                  <div style={{paddingLeft: '20px', marginTop: '14px', fontSize: '20px'}}>偏好设置</div>
-                  <div style={{height: '1px', borderBottom: '1px solid #ddd', marginTop: '14px'}}></div>
-                  <div style={{height: 'calc(100% - 60px)', padding: '14px'}}>
-                    <div style={{display: 'flex', justifyContent: 'space-between', padding: '14px 14px', borderBottom: '.5px solid #ddd',}}>
+                  <div style={{ paddingLeft: '20px', marginTop: '14px', fontSize: '20px' }}>偏好设置</div>
+                  <div style={{ height: '1px', borderBottom: '1px solid #ddd', marginTop: '14px' }}></div>
+                  <div style={{ height: 'calc(100% - 60px)', padding: '14px', overflowY: 'auto', }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 14px', borderBottom: '.5px solid #ddd', }}>
                       <div>弹窗词典 (点击单词后，自动弹出词典)</div>
                       <div>
                         <Switch checked={userPreference.floatDict} onChange={(checked) => {
-                          setUserPreference({...userPreference, floatDict: checked});
+                          setUserPreference({ ...userPreference, floatDict: checked });
                         }}></Switch>
                       </div>
                     </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 14px', borderBottom: '.5px solid #ddd', }}>
+                      <div>字幕字号：</div>
+                      <div>
+                        <Button
+                          type="text"
+                          style={{ color: "#ccc" }}
+                          onClick={() => {
+                            setUserPreference({ ...userPreference, subtitleFontSize: userPreference.subtitleFontSize - 1 });
+                          }}
+                        >
+                          <FontSizeOutlined /> -
+                        </Button>
+                        <span style={{ fontSize: userPreference.subtitleFontSize + 'px' }}>{userPreference.subtitleFontSize}px</span>
+                        <Button
+                          type="text"
+                          style={{ color: "#ccc" }}
+                          onClick={() => {
+                            setUserPreference({ ...userPreference, subtitleFontSize: userPreference.subtitleFontSize + 1 });
+                          }}
+                        >
+                          <FontSizeOutlined /> +
+                        </Button>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 14px', borderBottom: '.5px solid #ddd', }}>
+                      <div>精听设置</div>
+                      <div style={{display: 'flex', flexDirection: 'column', alignItems: 'end'}}>
+                        <div>
+                          <Button onClick={() => {
+                            const nextIntensiveStrategy = [...userPreference.intensiveStrategy, new PlayHow(1, true)];
+                            setUserPreference({ ...userPreference, intensiveStrategy: nextIntensiveStrategy });
+                          }}
+                          type="ghost"
+                          style={{color: '#ccc'}}
+                          >增加精听次数</Button>
+                        </div>
+                        <div style={{ margin: '14px 0' }}>
+                          {editStrategy !== null && editStrategyIndex !== undefined && <Modal 
+                                      visible={editStrategy !== null} 
+                                      footer={null}
+                                      closable={false}
+                                      onCancel={() => { setEditStrategy(null); setEditStrategyIndex(undefined); }}
+                                      onOk={() => { setEditStrategy(null); setEditStrategyIndex(undefined); }}
+                          >
+                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <div>显示字幕： <Switch checked={editStrategy.showSubtitle} onChange={(checked) => {
+                                    const newPlayHow = new PlayHow(editStrategy.speed, checked);
+                                    const nextIntensiveStrategy = [...userPreference.intensiveStrategy.slice(0, editStrategyIndex), 
+                                      newPlayHow,
+                                      ...userPreference.intensiveStrategy.slice(editStrategyIndex + 1)];
+                                    setUserPreference({ ...userPreference, intensiveStrategy: nextIntensiveStrategy });
+                                    setEditStrategy(newPlayHow);
+                                }}></Switch>{editStrategy.showSubtitle ? '开启' : '关闭'}
+                                </div>
+                                <div>倍速播放：<Radio.Group
+                                onChange={(event) => {
+                                    const newPlayHow = new PlayHow(event.target.value, editStrategy.showSubtitle)
+                                    const nextIntensiveStrategy = [...userPreference.intensiveStrategy.slice(0, editStrategyIndex), 
+                                      newPlayHow,
+                                      ...userPreference.intensiveStrategy.slice(editStrategyIndex + 1)];
+                                    setUserPreference({ ...userPreference, intensiveStrategy: nextIntensiveStrategy });
+                                    setEditStrategy(newPlayHow);
+                                }} value={editStrategy.speed}>
+                                    <Radio value={0.5}>0.5</Radio>
+                                    <Radio value={0.75}>0.75</Radio>
+                                    <Radio value={1}>1</Radio>
+                                    <Radio value={1.25}>1.25</Radio>
+                                    <Radio value={1.5}>1.5</Radio>
+                                    <Radio value={1.75}>1.75</Radio>
+                                    <Radio value={2}>2</Radio>
+                                  </Radio.Group> </div> 
+
+                                </div>
+                          </Modal>}
+                          {userPreference.intensiveStrategy.map((playHow, index) => {
+                            return <div style={{ display: 'flex', alignItems: 'center', borderBottom: '0.5px solid #ccc', marginBottom: '12px' }}>
+                              <div style={{ marginRight: '14px', paddingRight: '14px' }}>第{index + 1}遍</div> <div style={{ marginRight: '14px', paddingRight: '14px' }}>{playHow.showSubtitle ? '显示' : '隐藏'}字幕 ， {playHow.speed} 倍速播放</div>
+                              <Button type="ghost" style={{color: '#ccc'}} onClick={() => {
+                                setEditStrategyIndex(index);
+                                setEditStrategy(playHow);
+                              }}>修改</Button>
+                              <Button
+                                  onClick={() => {
+                                    const nextIntensiveStrategy = [...userPreference.intensiveStrategy.slice(0, index), 
+                                      ...userPreference.intensiveStrategy.slice(index + 1)];
+                                    setUserPreference({ ...userPreference, intensiveStrategy: nextIntensiveStrategy });
+                                  }}
+                                  type="ghost" style={{ color: '#ccc' }}>删除</Button>
+                            </div>
+                          })}
+                        </div>
+                      </div>
+
+                    </div>
+
                   </div>
                 </div>
               }}
-              />
-            }
+            />
+          }
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', maxWidth: '720px', marginTop: '40px', marginBottom: '10px' }}>
           <div style={{ width: '0.5%' }}></div>

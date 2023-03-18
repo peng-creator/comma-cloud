@@ -26,13 +26,13 @@ import { addSubtitle$ } from "../CardMaker/CardMaker";
 import { BehaviorSubject } from "rxjs";
 import { useBehavior } from "../../state";
 import { addSubtitleInput$, fetchStandaloneProps$, openStandaloneSubtitle$, standaloneSubtitleProps$, subtitleReadyToFeedStandaloneProps$ } from "../../state/subtitle";
-import { defaultIntensiveStrategy } from "../../type/SubtitlePlayStrategy";
 import { Icon } from "@blueprintjs/core";
 import { reloadSubtitlesOfVideo } from "../../service/http/Subtitle";
 import { setUserPreference, UserPreference, userPreference$ } from "../../state/preference";
 import { playSubtitle$ } from "../../state/video";
 import { getPlaylistByPlayingVideo } from "../../state/playlist";
 import { openDir$ } from "../../state/resourceLoader";
+import { defaultIntensiveStrategy } from "../../type/SubtitlePlayStrategy";
 
 export const SubtitleComponent = ({
   title,
@@ -77,7 +77,8 @@ export const SubtitleComponent = ({
   const [scrollToIndex] = useBehavior(scrollToIndex$, -1);
   const [intensive] = useBehavior(intensive$, true);
   const [intensiveStrategyIndex] = useBehavior(intensiveStrategyIndex$, 0);
-  const playHow = defaultIntensiveStrategy[intensiveStrategyIndex];
+  const [userPreference] = useBehavior(userPreference$, {} as UserPreference);
+  const playHow = (userPreference.intensiveStrategy || defaultIntensiveStrategy)[intensiveStrategyIndex];
 
   const subtitles = _subtitles || [];
   const loopingSubtitle = _loopingSubtitle !== null ? subtitles.find(({ start, end, subtitles }) => {
@@ -102,7 +103,6 @@ export const SubtitleComponent = ({
   }, [virtuoso, scrollToIndex, scrollTo]);
 
   const [singleMode, setSingleMode] = useState(true);
-  const [userPreference] = useBehavior(userPreference$, {} as UserPreference);
   const subtitleFontSize = userPreference.subtitleFontSize;
   const playlistPromise = getPlaylistByPlayingVideo(filePath);
 
@@ -807,24 +807,6 @@ export const SubtitleComponent = ({
           }}
         >
           <Icon icon="lightning" size={18} color="#ccc" />
-        </Button>
-        <Button
-          type="text"
-          style={{ color: "#ccc" }}
-          onClick={() => {
-            setUserPreference({...userPreference, subtitleFontSize: subtitleFontSize - 1});
-          }}
-        >
-          <FontSizeOutlined /> -
-        </Button>
-        <Button
-          type="text"
-          style={{ color: "#ccc" }}
-          onClick={() => {
-            setUserPreference({...userPreference, subtitleFontSize: subtitleFontSize + 1});
-          }}
-        >
-          <FontSizeOutlined /> +
         </Button>
         {fromZoneId && <Button
           type="text"

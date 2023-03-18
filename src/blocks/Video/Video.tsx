@@ -21,6 +21,8 @@ import { playSubtitleRecord$ } from "../../state/video";
 import { defaultIntensiveStrategy, SubtitlePlayStrategy } from "../../type/SubtitlePlayStrategy";
 import { useStore } from "../../store";
 import { message } from "antd";
+import { useBehavior } from "../../state";
+import { userPreference$, UserPreference } from "../../state/preference";
 
 type VideoState = {
   subtitles: Subtitle[];
@@ -33,7 +35,6 @@ type VideoState = {
   outSideSubtitlePlayed: boolean;
   startPublishingData: boolean;
   intensive: boolean;
-  intensiveStrategy: SubtitlePlayStrategy;
   intensiveStrategyIndex: number;
   intensiveSubtitle: Subtitle | null;
   playbackRate: number;
@@ -56,6 +57,7 @@ export const Video = ({
   title: string;
   layoutMode: number;
 }) => {
+  const [userPreference] = useBehavior(userPreference$, {} as UserPreference);
   let store = useStore<VideoState>({
     subtitles: [], 
     player: null,
@@ -67,7 +69,6 @@ export const Video = ({
     outSideSubtitlePlayed: false,
     startPublishingData: false,
     intensive: false,
-    intensiveStrategy: defaultIntensiveStrategy,
     intensiveStrategyIndex: 0,
     intensiveSubtitle: null,
     playbackRate: 1,
@@ -403,7 +404,6 @@ export const Video = ({
   }, [store.playing, ref.current, store.subtitles, store.loopingSubtitle, store.intensive, store.intensiveSubtitle]);
 
   useEffect(() => {
-    console.log('debug-001, :', store.playing, ref, store.subtitles, store.loopingSubtitle, store.intensive, store.intensiveStrategy, store.intensiveStrategyIndex, store.intensiveSubtitle);
     // 精读 effect
     const player = ref.current;
     if (player === null) {
@@ -438,11 +438,11 @@ export const Video = ({
       }
       console.log('check intensiveStrategyIndex, currentTime:', currentTime);
       const outOfIntensiveTime = currentTime > store.intensiveSubtitle.end - 1;
-      const intensiveStrategyNotFinished = store.intensiveStrategyIndex < store.intensiveStrategy.length - 1;
+      const intensiveStrategyNotFinished = store.intensiveStrategyIndex < userPreference.intensiveStrategy.length - 1;
       if (outOfIntensiveTime && intensiveStrategyNotFinished) { // 离开精听片段，但策略未播放完毕
         const nextIntensiveStrategyIndex = store.intensiveStrategyIndex + 1;
         store.intensiveStrategyIndex = nextIntensiveStrategyIndex;
-        let currentPlayHow = store.intensiveStrategy[nextIntensiveStrategyIndex];
+        let currentPlayHow = userPreference.intensiveStrategy[nextIntensiveStrategyIndex];
         store.playbackRate = currentPlayHow.speed;
         seekTo(store.intensiveSubtitle.start / 1000);
         return;
@@ -453,7 +453,7 @@ export const Video = ({
           console.log('intensiveSwithing finished');
           store.intensiveSwithing = false; // 切换完毕
           const nextIntensiveStrategyIndex = 0;
-          let currentPlayHow = store.intensiveStrategy[nextIntensiveStrategyIndex];
+          let currentPlayHow = userPreference.intensiveStrategy[nextIntensiveStrategyIndex];
           store.playbackRate = currentPlayHow.speed;
           store.intensiveStrategyIndex = nextIntensiveStrategyIndex;
           store.scrollToIndex += 1;
@@ -463,7 +463,7 @@ export const Video = ({
         currentTime < store.intensiveSubtitle.start - 1 ||
         currentTime > store.intensiveSubtitle.end + 1
       ) {
-        if (store.intensiveStrategyIndex < store.intensiveStrategy.length - 1) {
+        if (store.intensiveStrategyIndex < userPreference.intensiveStrategy.length - 1) {
           return;
         }
         store.intensiveSubtitle = store.subtitles[store.scrollToIndex + 1];
@@ -477,7 +477,7 @@ export const Video = ({
       console.log('debug-001, clearInterval timer:', timer);
       clearInterval(timer);
     };
-  }, [store.playing, ref, store.subtitles, store.loopingSubtitle, store.intensive, store.intensiveStrategy, store.intensiveStrategyIndex, store.intensiveSubtitle, store.intensiveSwithing]);
+  }, [store.playing, ref, store.subtitles, store.loopingSubtitle, store.intensive, userPreference.intensiveStrategy, store.intensiveStrategyIndex, store.intensiveSubtitle, store.intensiveSwithing]);
 
   useEffect(() => {
     getSubtitlesOfVideo(filePath).then((subtitles) => {
