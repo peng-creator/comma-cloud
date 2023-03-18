@@ -2,9 +2,11 @@ import { FilePdfFilled, FolderOutlined, LeftOutlined, VideoCameraFilled } from '
 import { Button, Modal } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { loadDirChildren } from '../../service/http/ResourceLoader';
+import { addPalylist$ } from '../../state/playlist';
 import styles from './ResourceLoader.module.css';
 
-export const ResourceLoader = ({ visible, onClose, onOpenPDF, onOpenVideo }: {
+export const ResourceLoader = ({ visible, defaultDir, onClose, onOpenPDF, onOpenVideo }: {
+  defaultDir: string;
   visible: boolean;
   onClose: () => void;
   onOpenPDF: (filePath: string) => void;
@@ -35,9 +37,12 @@ export const ResourceLoader = ({ visible, onClose, onOpenPDF, onOpenVideo }: {
 
   useEffect(() => {
     if (visible) {
-      openFolder('', '');
+      const splittedDirs = defaultDir.split('/');
+      const dirToOpen = splittedDirs.pop() || '';
+      const currDir = splittedDirs.join('/');
+      openFolder(currDir, dirToOpen);
     }
-  }, [visible]);
+  }, [visible, defaultDir]);
 
 
   return <Modal
@@ -61,7 +66,7 @@ export const ResourceLoader = ({ visible, onClose, onOpenPDF, onOpenVideo }: {
           console.log('parentDir:', parentDir);
           openFolder(parentDir, dirs[dirs.length - 2]);
         }
-      }}> <LeftOutlined /> </Button>{dirname}</div>}
+      }}> {dirname && <LeftOutlined /> } </Button>{dirname}</div>}
     visible={visible} footer={null} onCancel={onClose}>
     {/* render dirs */}
     {dirs.length > 0 &&
@@ -126,6 +131,12 @@ export const ResourceLoader = ({ visible, onClose, onOpenPDF, onOpenVideo }: {
         const openVideo = () => {
           const filePath = currDir + '/' + videoFile;
           onOpenVideo(filePath);
+          addPalylist$.next({
+            files: videos.map((videoFile) => {
+              return currDir + '/' + videoFile;
+            }),
+            parentDir: currDir,
+          });
         };
         return (
           <div

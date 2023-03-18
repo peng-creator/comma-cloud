@@ -1,4 +1,6 @@
+import { message } from 'antd';
 import axios from 'axios';
+import { expired$ } from '../../state/session';
 import { host } from '../../utils/host';
 
 const instance = axios.create({
@@ -13,7 +15,24 @@ instance.interceptors.request.use((config) => {
   return Promise.reject(error);
 });
 
+instance.interceptors.response.use((res) => {
+  return res;
+}, (error) => {
+  console.log('on response error:', error);
+  if (error.response.status === 401) {
+    console.log('401 error');
+    localStorage.removeItem('sessionId');
+    expired$.next('expired');
+  }
+  return Promise.reject(error);
+});
+
+
 export const axiosInstancePromise = Promise.resolve(instance);
+
+export const unauthorizedCatch = () => {
+
+}
 
 export const reportError = async (error: any) => {
   const axios = await axiosInstancePromise;

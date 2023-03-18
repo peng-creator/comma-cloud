@@ -1,4 +1,4 @@
-import { Button, Drawer, Input, message, Modal } from "antd";
+import { Button, Drawer, Input, message, Modal, Switch } from "antd";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ZoneDefinition } from "../../type/Zone";
 import { ResourceLoader } from "../ResourceLoader/ResourceLoader";
@@ -31,7 +31,7 @@ import "@blueprintjs/icons/lib/css/blueprint-icons.css";
 import { dropRight } from "lodash";
 import { Zone } from "../Zone/Zone";
 import { dragWindowEnd$, dragWindowStart$, isDraggingSplitBar$, toggleLayout$ } from "../../state/zone";
-import { AppstoreOutlined, SearchOutlined, ArrowsAltOutlined, ShrinkOutlined, DownOutlined, UpCircleOutlined, UpOutlined } from "@ant-design/icons";
+import { AppstoreOutlined, SearchOutlined, ArrowsAltOutlined, ShrinkOutlined, DownOutlined, UpCircleOutlined, UpOutlined, SettingOutlined } from "@ant-design/icons";
 import { search$, searchSentence } from "../../state/search";
 import { TapCache } from "../../compontent/TapCache/TapCache";
 import { StatusBar, Style } from '@capacitor/status-bar';
@@ -41,6 +41,11 @@ import { openStandaloneSubtitle$ } from "../../state/subtitle";
 import { v4 as uuidv4 } from "uuid";
 import { closeZone, registerZones } from "../../service/http/Zone";
 import { getRecords, Record } from "../../service/http/Records";
+import { expired$ } from "../../state/session";
+import ReactCodeInput from '@acusti/react-code-input';
+import { FloatDict } from "../FloatDict/FloatDict";
+import { setUserPreference, userPreference$ } from "../../state/preference";
+import { openDir$ } from "../../state/resourceLoader";
 
 // iOS only
 window.addEventListener('statusTap', function () {
@@ -99,6 +104,7 @@ export const App = () => {
   const [zones, setZones] = useState<ZoneDefinition[]>([]);
   const [showAddZone, setShowAddZone] = useState(false);
   const [showResourceLoader, setShowResourceLoader] = useState(false);
+  const [defaultDir, setDefaultDir] = useState('/');
   const [contextMenuList] = useBehavior(contextMenu$, []);
 
   const [currentNode, setCurrentNode] = useState<MosaicNode<string> | null>(null);
@@ -108,6 +114,30 @@ export const App = () => {
   const [records, setRecords] = useState([] as Record[]);
   const [fullScreenZoneId, setFullScreenZoneId] = useState('');
   const [showBottomBar, setShowBottomBar] = useState(true);
+  const [showPreferenceModal, setShowPreferenceModal] = useState(false);
+  const [showAccessCodeInput, setShowAccessCodeInput] = useState(false);
+  const [userPreference] = useBehavior(userPreference$, {} as any);
+
+  useEffect(() => {
+    openDir$.subscribe({
+      next(dir) {
+        if (!dir) {
+          return;
+        }
+        setDefaultDir(dir);
+        setShowResourceLoader(true);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    const sp = expired$.subscribe({
+      next() {
+        setShowAccessCodeInput(true);
+      }
+    });
+    return () => sp.unsubscribe();
+  }, []);
 
   const saveWorkZones = (currentNode: MosaicNode<string> | null, zones: ZoneDefinition[]) => {
     console.log('currentNode: ', currentNode);
@@ -268,14 +298,14 @@ export const App = () => {
       console.log('serializedWindowTree:', serializedWindowTree);
       console.log('serializedZones:', serializedZones);
       let zones: ZoneDefinition[] = [{
-        "title":"词典",
-        "type":"dict",
-        "multiLayout":false,
-        "data":{
-          "name":"有道",
-          "template":"https://mobile.youdao.com/dict?le=eng&q={}"
+        "title": "词典",
+        "type": "dict",
+        "multiLayout": false,
+        "data": {
+          "name": "有道",
+          "template": "https://mobile.youdao.com/dict?le=eng&q={}"
         },
-        "id":"7ad47632-83f7-428a-98b4-51e402fab185"
+        "id": "7ad47632-83f7-428a-98b4-51e402fab185"
       }];
       let currentNode = null;
       try {
@@ -312,11 +342,28 @@ export const App = () => {
     return () => sp.unsubscribe();
   }, [zones, currentNode]);
 
+  if (showAccessCodeInput) {
+    return <div style={{display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%'}}>
+      <div>请输入访问码</div>
+      <ReactCodeInput 
+      inputStyle={{fontSize: '14px', width: '28px', textAlign: 'center', color: 'black', border: 'none', margin: '14px', borderRadius: '5px'}}
+      type='text' fields={4} name="accessCode" inputMode="numeric" onChange={(value) => {
+        console.log('changed:', value);
+        if (value.length === 4) {
+          window.location.href = '/access/' + value;
+        }
+      }} />
+    </div>
+
+  }
+
   return (
     <div style={{ height: "100%", position: "relative" }}>
       <TapCache />
-      <ResourceLoader
+      <FloatDict></FloatDict>
+      {showResourceLoader && <ResourceLoader
         visible={showResourceLoader}
+        defaultDir={defaultDir}
         onClose={() => {
           setShowResourceLoader(false);
         }}
@@ -344,7 +391,7 @@ export const App = () => {
           },);
           setShowResourceLoader(false);
         }}
-      ></ResourceLoader>
+      ></ResourceLoader>}
       <ContextMenu
         id="MENU_ID"
         animation={false}
@@ -404,6 +451,7 @@ export const App = () => {
                     setFullScreenZoneId('');
                   } else {
                     setFullScreenZoneId(zone.id);
+                    setShowBottomBar(false);
                   }
                 }}>
                   <Icon style={{ position: 'relative', top: '-1px' }} icon={zone.id === fullScreenZoneId ? "minimize" : "maximize"} size={18} color="#5f6b7c" />
@@ -447,6 +495,17 @@ export const App = () => {
         margin: '0 14px',
       }}>
         <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', }}>
+          <Button
+            type="text"
+            style={{
+              color: '#ccc'
+            }}
+            onClick={() => {
+              setShowBottomBar(false);
+            }}
+          >
+            <DownOutlined />
+          </Button>
           <Input
             prefix={<SearchOutlined />}
             ref={searchBoxRef}
@@ -460,7 +519,6 @@ export const App = () => {
               fontSize: "24px",
               flexGrow: 1,
               height: '30px',
-              marginLeft: '32px',
             }}
             onKeyDown={(e) => {
               const key = e.key.toLowerCase();
@@ -470,20 +528,60 @@ export const App = () => {
             }}
             placeholder="搜索单词、句子"
           />
-          <Button
-            type="text"
-            style={{
-              color: '#ccc'
-            }}
-            onClick={() => {
-              setShowBottomBar(false);
-            }}
-          >
-            <DownOutlined />
-          </Button>
+            <Button
+              type="text"
+              style={{
+                color: '#ccc'
+              }}
+              onClick={() => {
+                setShowPreferenceModal(true);
+              }}
+            >
+              <SettingOutlined></SettingOutlined>
+            </Button>
+            {
+              showPreferenceModal && <Modal
+              width="95%"
+              style={{
+                  height: '50%',
+                  top: '50%',
+                  transform: 'translate(0, -50%)',
+                  minHeight: '550px',
+              }}
+              footer={null}
+              closable={false}
+              visible={showPreferenceModal}
+              onCancel={() => { setShowPreferenceModal(false) }}
+              onOk={() => { setShowPreferenceModal(false) }}
+              modalRender={() => {
+                return <div style={{
+                  background: '#000',
+                  height: '100%',
+                  width: '100%',
+                  borderRadius: '14px',
+                  pointerEvents: 'auto',
+                  overflow: 'hidden',
+                  color: '#ccc',
+                }}>
+                  <div style={{paddingLeft: '20px', marginTop: '14px', fontSize: '20px'}}>偏好设置</div>
+                  <div style={{height: '1px', borderBottom: '1px solid #ddd', marginTop: '14px'}}></div>
+                  <div style={{height: 'calc(100% - 60px)', padding: '14px'}}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', padding: '14px 14px', borderBottom: '.5px solid #ddd',}}>
+                      <div>弹窗词典 (点击单词后，自动弹出词典)</div>
+                      <div>
+                        <Switch checked={userPreference.floatDict} onChange={(checked) => {
+                          setUserPreference({...userPreference, floatDict: checked});
+                        }}></Switch>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              }}
+              />
+            }
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', maxWidth: '720px', marginTop: '40px', marginBottom: '10px' }}>
-          <div style={{width: '0.5%'}}></div>
+          <div style={{ width: '0.5%' }}></div>
           <Button
             type='ghost'
             style={{ color: '#ccc', width: '33%', height: '40px' }}
@@ -496,7 +594,7 @@ export const App = () => {
           </Button>
           <Button
             type='ghost'
-            style={{ color: '#ccc', width: '33%', height: '40px'}}
+            style={{ color: '#ccc', width: '33%', height: '40px' }}
             onClick={() => {
               addZone({
                 title: "词典",
@@ -527,8 +625,8 @@ export const App = () => {
           >
             卡片
           </Button>
-          <div style={{width: '0.5%'}}></div>
-          <div style={{width: '0.5%'}}></div>
+          <div style={{ width: '0.5%' }}></div>
+          <div style={{ width: '0.5%' }}></div>
           <Button
             type='ghost'
             style={{ color: '#ccc', width: '33%', height: '40px' }}
@@ -595,6 +693,9 @@ export const App = () => {
                     if (type === 'video') {
                       playSubtitle$.next({ ...progress, file })
                     }
+                    if (type === 'pdf') {
+                      openNote$.next({ ...progress, file });
+                    }
                     setShowRecordModal(false);
                   }}>
                     <div style={{ maxWidth: 'calc(100% - 30px)', overflow: 'auto' }}>
@@ -612,14 +713,19 @@ export const App = () => {
         type="text"
         onClick={() => {
           setShowBottomBar(true);
+          if (fullScreenZoneId) {
+            setShowBottomBar(false);
+            setFullScreenZoneId('');
+          }
         }}
-        style={{ position: 'absolute', bottom: '14px', right: '14px', zIndex: 4, color: '#ccc', background: '#000', width: '40px', height: '40px',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderRadius: '50%',
+        style={{
+          position: 'absolute', bottom: '14px', left: '14px', zIndex: 6, color: '#ccc', background: '#000', width: '40px', height: '40px',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          borderRadius: '50%',
         }}>
-        <UpOutlined style={{position: 'relative', top: '2px'}}/>
+        {fullScreenZoneId ? <Icon style={{ position: 'relative', top: '-1px' }} icon={"minimize"} size={18} color="#ccc" /> : <UpOutlined style={{ position: 'relative', top: '2px' }} />}
       </Button>}
     </div>
   );

@@ -7,15 +7,19 @@ import { setContextMenu } from "../../state/contextMenu";
 import { pdfNote$ } from "../CardMaker/CardMaker";
 import { PDFNote } from "../../type/PDFNote";
 import { searchSentence, tapWord$ } from "../../state/search";
-import { debounceTime, Subject } from "rxjs";
+import { auditTime, debounceTime, Subject } from "rxjs";
 import { host } from "../../utils/host";
 import { DownOutlined, LeftOutlined, RightOutlined, UnorderedListOutlined } from "@ant-design/icons";
 import { HexColorPicker } from "react-colorful";
 import { complementary, hex2rgbObject } from 'lumino';
+import { useStore } from "../../store";
+import { saveRecord } from "../../service/http/Records";
 
 const MENU_ID = "MENU_ID";
 
 pdfjs.GlobalWorkerOptions.workerSrc = "/assets/pdf.worker.min.js";
+
+export const pdfNoteInput$ = new Subject<PDFNote>();
 
 export type MarkMap = {
   [key: string]: string | undefined;
@@ -53,6 +57,9 @@ type InnerPdfProps = {
 function _InnerPdf({ filePath, onGetNumPages, onGetPageLoaded, pageRef, pageNumber, fitWidth, pageWidth, fitHeight, pageHeight, onGetWordIndexMap, scale }: InnerPdfProps) {
   return (
     <Document
+      options={{
+        standardFontDataUrl: '/assets/standard_fonts/',
+      }}
       file={filePath}
       onLoadSuccess={({ numPages }: any) => {
         onGetNumPages(numPages);
@@ -72,18 +79,6 @@ function _InnerPdf({ filePath, onGetNumPages, onGetPageLoaded, pageRef, pageNumb
         onRenderTextLayerSuccess={() => {
           if (pageRef.current) {
             const words = (pageRef.current as HTMLDivElement).querySelectorAll('.pdf_page_word');
-            console.log(words);
-            // Array.from(words).forEach((wordEl) => {
-            //   wordEl.addEventListener('touchstart', (e) => {
-            //     console.log('touchstart:', e);
-            //   });
-            //   wordEl.addEventListener('touchmove', (e) => {
-            //     console.log('touchmove:', e);
-            //   });
-            //   wordEl.addEventListener('touchend', (e) => {
-            //     console.log('touchend:', e);
-            //   });
-            // })
             onGetWordIndexMap(Array.from(words).reduce((acc, curr, index) => {
               (acc as any).set(curr, index);
               return acc;
@@ -116,35 +111,64 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
   const [placeholderWidth, setPlaceholderWidth] = useState(0);
   const [pageLoaded, setPageLoaded] = useState(false);
 
-  const [wordIndexMap, setWordIndexMap] = useState(new Map<HTMLDivElement, number>());
-  const [isSelecting, setIsSelecting] = useState(false);
-  const [selectStartIndex, setSelectStartIndex] = useState(-1);
   const [selectEndIndex, setSelectEndIndex] = useState(-1);
-  const [selectLongPressTimer, setSelectLongPressTimer] = useState<any>(null);
-  const [pointerDownTarget, setPointerDownTarget] = useState<HTMLElement | null>(null);
+
+  const initColor = localStorage.getItem('pdf-font-color') || "#ccc";
+  const initBackgroundColor = localStorage.getItem('pdf-background-color') || "#000";
+
+  const store = useStore<{
+    selectLongPressTimer: any;
+    isSelecting: boolean;
+    wordIndexMap: Map<HTMLDivElement, number>;
+    selectStartIndex: number;
+    pureMode: boolean;
+    pointerDownTarget: HTMLElement | null;
+    isModalVisible: boolean;
+    color: string;
+    backgroundColor: string;
+    colorEditing: string;
+    backgroundColorEditing: string;
+  }>({
+    selectLongPressTimer: null,
+    isSelecting: false,
+    wordIndexMap: new Map<HTMLDivElement, number>(),
+    selectStartIndex: -1,
+    pureMode: false,
+    pointerDownTarget: null,
+    isModalVisible: false,
+    color: initColor,
+    colorEditing: initColor,
+    backgroundColor: initBackgroundColor,
+    backgroundColorEditing: initBackgroundColor,
+  });
+  const setBackgroundColorEditing = (backgroundColorEditing: string) => store.backgroundColorEditing = backgroundColorEditing;
+  const setColorEditing = (colorEditing: string) => store.colorEditing = colorEditing;
+  const setBackgroundColor = (backgroundColor: string) => store.backgroundColor = backgroundColor;
+  const setIsModalVisible = (isModalVisible: boolean) => store.isModalVisible = isModalVisible;
+  const setIsSelecting = (isSelecting: boolean) => store.isSelecting = isSelecting;
+  const setSelectStartIndex = (selectStartIndex: number) => store.selectStartIndex = selectStartIndex;
+  const setColor = (color: string) => store.color = color;
+  const setPointerDownTarget = (target: HTMLElement) => store.pointerDownTarget = target;
 
   const [createdNote, setCreatedNote] = useState<PDFNote | null>(null);
 
   const [scale, setScale] = useState(1);
-  const [pureMode, setPureMode] = useState(false);
 
   const { show, hideAll } = useContextMenu({
     id: MENU_ID,
   });
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [color, setColor] = useState(localStorage.getItem('pdf-font-color') || "#ccc");
-  const [backgroundColor, setBackgroundColor] = useState(localStorage.getItem('pdf-background-color') || "#000");
-  const [colorEditing, setColorEditing] = useState(color);
-  const [backgroundColorEditing, setBackgroundColorEditing] = useState(backgroundColor);
+
+
+  const [touchMove$] = useState(new Subject<any>());
 
   useEffect(() => {
     let styleEl = document.querySelector('style#pdf-config');
     const styleContetn = `
     .pdf-container.pure-text-mode .canvas-placeholder {
-      background: ${backgroundColor} !important;
+      background: ${store.backgroundColor} !important;
     }
     .pdf-container.pure-text-mode .pdf_page_word {
-      color: ${color};
+      color: ${store.color};
     }
     `;
     if (!styleEl) {
@@ -153,10 +177,11 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
       document.head.appendChild(styleEl);
     }
     styleEl.innerHTML = styleContetn;
-  }, [color, backgroundColor]);
+  }, [store.color, store.backgroundColor]);
 
   useEffect(() => {
     const container = containerRef.current;
+    const resize$ = new Subject<any>();
     const fitWidth = () => {
       if (container) {
         setFitHeight(false);
@@ -166,9 +191,21 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
       }
     };
     fitWidth();
-    container?.addEventListener("resize", fitWidth);
+    const sp = resize$.pipe(
+      auditTime(1000),
+    ).subscribe({
+      next() {
+        fitWidth();
+      },
+    });
+    container?.addEventListener("resize", () => {
+      resize$.next('');
+    });
     return () => {
-      container?.removeEventListener("resize", fitWidth);
+      container?.removeEventListener("resize", () => {
+        resize$.next('');
+      });
+      sp.unsubscribe();
     };
   }, [containerRef]);
 
@@ -181,6 +218,20 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
     if (pdfContainer) {
       pdfContainer.scrollTop = 0;
     }
+  }, [pageNumber]);
+
+  useEffect(() => {
+    saveRecord({
+      file,
+      progress: {
+        page: pageNumber,
+        end: -1,
+        start: -1,
+        file,
+        content: '',
+      } as PDFNote,
+      type: 'pdf',
+    });
   }, [pageNumber]);
 
   useEffect(() => {
@@ -207,27 +258,31 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
   }, [outSideNoteOpened, note]);
 
   const highlight = useCallback((start: number, end: number) => {
-    const { r, g, b } = complementary(hex2rgbObject(color));
-    wordIndexMap.forEach((index, ele) => {
+    store.wordIndexMap.forEach((index, ele) => {
       if (index >= start && index <= end) {
-        if (pureMode) {
-          ele.style.background = `rgba(${r}, ${g}, ${b}, 0.4)`;
+        if (store.pureMode) {
+          ele.style.background = store.color || '#000';
+          ele.style.color = store.backgroundColor || '#fff';
         } else {
-          ele.style.background = `rgba(255, 255, 0, 0.4)`;
+          ele.style.background = `rgba(255, 255, 0, .5)`;
         }
       } else {
         ele.style.background = 'none';
+        ele.style.color = ``;
       }
     })
-  }, [wordIndexMap, color, pureMode]);
+  }, [store.wordIndexMap, store.color, store.backgroundColor]);
 
   const cancelHighlight = useCallback((start: number, end: number) => {
-    wordIndexMap.forEach((index, ele) => {
-      if (index >= start && index <= end) {
+    let min = Math.min(start, end);
+    let max = Math.max(start, end);
+    store.wordIndexMap.forEach((index, ele) => {
+      if (index >= min && index <= max) {
         ele.style.background = 'none';
+        ele.style.color = '';
       }
     })
-  }, [wordIndexMap]);
+  }, [store.wordIndexMap, store.color]);
 
   useEffect(() => {
     if (note && !outSideNoteOpened && pageLoaded) {
@@ -248,19 +303,13 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
   const _setPageLoaded = useCallback(() => {
     setPageLoaded(true);
   }, []);
-  const _onGetWordIndexMap = useCallback((map: any) => {
-    setWordIndexMap(map);
-  }, []);
-
-
 
   const checkSelectStart = (e: any) => {
-    console.log('checkSelectStart')
     const target = e.target as HTMLDivElement;
-    if (target.classList.contains('pdf_page_word')) {
-      const index = wordIndexMap.get(target);
-      if (index) {
-        if (index === selectStartIndex) {
+    if (target && target.classList.contains('pdf_page_word')) {
+      const index = store.wordIndexMap.get(target);
+      if (index !== undefined) {
+        if (index === store.selectStartIndex) {
           target.style.background = 'none';
           return;
         }
@@ -273,20 +322,25 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
   };
 
   const checkSelect = (target: HTMLDivElement) => {
-    // console.log('checkSelect target:', target);
-    if (target.classList.contains('pdf_page_word') && isSelecting) {
-      const index = wordIndexMap.get(target);
-      (window as any).endTarget = target;
-      (window as any).wordIndexMap = wordIndexMap;
+    if (!target) {
+      return;
+    }
+    const shouldHighlight = target.classList.contains('pdf_page_word') && store.isSelecting;
+    if (shouldHighlight) {
+      console.log('checkSelect word:', target);
+      console.log('store.wordIndexMap:', store.wordIndexMap);
+      const index = store.wordIndexMap.get(target);
       if (index) {
         setSelectEndIndex(index);
-        let start = Math.min(index, selectStartIndex);
-        let end = Math.max(index, selectStartIndex);
+        let start = Math.min(index, store.selectStartIndex);
+        let end = Math.max(index, store.selectStartIndex);
+        console.log('hightlight index:', start, end);
         highlight(start, end);
       }
     }
   };
   const checkSelectEnd = (e: any) => {
+    console.log('checkSelectEnd')
     let target: HTMLDivElement;
     try {
       const changedTouch = e.changedTouches[0];
@@ -294,16 +348,17 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
     } catch (err) {
       target = e.target as HTMLDivElement;
     }
-
-    console.log('checkSelectEnd')
-    setIsSelecting(false);
+    if (!target) {
+      return;
+    }
     const targetIsWordEl = target.classList.contains('pdf_page_word');
-    if (isSelecting) {
-      console.log('isSelecting');
-      let start = selectStartIndex;
+    if (store.isSelecting) {
+      console.log('store.isSelecting');
+      console.log('checkSelectEnd')
+      let start = store.selectStartIndex;
       let end = selectEndIndex;
       let words: string[] = [];
-      wordIndexMap.forEach((index, ele) => {
+      store.wordIndexMap.forEach((index, ele) => {
         if (index >= start && index <= end) {
           words.push(ele.textContent || '');
         }
@@ -322,6 +377,7 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
           {
             onClick: () => {
               pdfNote$.next(pdfNote);
+              pdfNoteInput$.next(pdfNote);
             },
             title: '加入卡片',
           },
@@ -344,14 +400,18 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
 
     } else if (targetIsWordEl && createdNote !== null) { // 点击文字，且当前已有标注
       console.log('点击文字，且当前已有标注');
-      let wordIndex = wordIndexMap.get(target);
+      console.log('checkSelectEnd')
+      let wordIndex = store.wordIndexMap.get(target);
       const { start, end } = createdNote;
-      if (wordIndex !== undefined && wordIndex >= start && wordIndex <= end) {
+      const max = Math.max(start, end);
+      const min = Math.min(start, end);
+      if (wordIndex !== undefined && wordIndex >= min && wordIndex <= max) {
         setContextMenu([
           [
             {
               onClick: () => {
                 pdfNote$.next(createdNote);
+                pdfNoteInput$.next(createdNote);
               },
               title: '加入卡片',
             },
@@ -371,18 +431,23 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
           ]
         ]);
         show(e);
-      } else if (target === pointerDownTarget && targetIsWordEl) {
+      } else if (target === store.pointerDownTarget && targetIsWordEl) {
         toutchWord$.next(target.textContent || '');
       }
-    } else if (createdNote !== null && target === pointerDownTarget) {
+    } else if (createdNote !== null && target === store.pointerDownTarget) {
+      console.log('checkSelectEnd');
       console.log('空白处点击, 隐藏菜单');
       // const { start, end } = createdNote;
       // cancelHighlight(start, end);
       // setCreatedNote(null);
       hideAll();
-    }  else if (target === pointerDownTarget && targetIsWordEl) {
+    } else if (target === store.pointerDownTarget && targetIsWordEl) {
+      console.log('checkSelectEnd')
       toutchWord$.next(target.textContent || '');
+    } else {
+      console.log('checkSelectEnd');
     }
+    setIsSelecting(false);
     setSelectEndIndex(-1);
     setSelectStartIndex(-1);
   }
@@ -422,15 +487,16 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
   }
 
   const onTouchStart = (e: any) => {
-    // e.stopPropagation();
-    if (selectLongPressTimer) {
-      clearTimeout(selectLongPressTimer);
+    e.stopPropagation();
+    e.preventDefault();
+    if (store.selectLongPressTimer) {
+      clearTimeout(store.selectLongPressTimer);
     }
     setPointerDownTarget(e.target as HTMLElement);
-    setSelectLongPressTimer(setTimeout(() => {
+    store.selectLongPressTimer = setTimeout(() => {
       checkSelectStart(e);
-      setSelectLongPressTimer(null);
-    }, 500))
+      store.selectLongPressTimer = null;
+    }, 200);
   };
   const onTouchMove = (e: any) => {
     // e.stopPropagation();
@@ -441,22 +507,39 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
     } catch (err) {
       elem = e.target;
     }
-    if (elem !== pointerDownTarget) {
-      if (selectLongPressTimer !== null) {
-        clearTimeout(selectLongPressTimer);
-        setSelectLongPressTimer(null);
+    if (elem !== store.pointerDownTarget) {
+      if (store.selectLongPressTimer !== null) {
+        clearTimeout(store.selectLongPressTimer);
+        store.selectLongPressTimer = null;
       }
       checkSelect(elem);
     }
   };
+
+  useEffect(() => {
+    const sp = touchMove$.pipe(
+      auditTime(20)
+    ).subscribe({
+      next(e) {
+        onTouchMove(e);
+      }
+    });
+    return () => sp.unsubscribe();
+  }, []);
+
   const onTouchEnd = (e: any) => {
     // e.stopPropagation();
+    console.log('checkSelectEnd');
     checkSelectEnd(e);
-    if (selectLongPressTimer) {
-      clearTimeout(selectLongPressTimer);
-      setSelectLongPressTimer(null);
+    if (store.selectLongPressTimer) {
+      clearTimeout(store.selectLongPressTimer);
+      store.selectLongPressTimer = null;
     }
   };
+  const onGetWordIndexMap = useCallback((map: any) => {
+    store.wordIndexMap = map;
+  }, []);
+
   return (
     <div
       style={{
@@ -465,7 +548,7 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
         overflow: "hidden",
         position: "relative",
         userSelect: 'none',
-        background: pureMode ? backgroundColor : '#fff',
+        background: store.pureMode ? store.backgroundColor : '#fff',
       }}
       ref={containerRef}
     >
@@ -527,20 +610,20 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
 
             </div>
             <div style={{ padding: '14px 0', display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '0 14px' }}>
-              <span>纯文本模式:</span> <Switch style={{ margin: '0 14px' }} checked={pureMode} checkedChildren="on" unCheckedChildren="off" title="纯文本模式" onChange={(checked) => setPureMode(checked)} />
+              <span>纯文本模式:</span> <Switch style={{ margin: '0 14px' }} checked={store.pureMode} checkedChildren="on" unCheckedChildren="off" title="纯文本模式" onChange={(checked) => store.pureMode = checked} />
             </div>
-            {pureMode && <Button onClick={() => { setIsModalVisible(true) }}>颜色设置</Button>}
+            {store.pureMode && <Button onClick={() => { setIsModalVisible(true) }}>颜色设置</Button>}
           </div>}>
-          <a onClick={e => e.preventDefault()} style={{ color: pureMode ? color : '#000', fontSize: '25px' }}>
+          <a onClick={e => e.preventDefault()} style={{ color: store.pureMode ? store.color : '#000', fontSize: '25px' }}>
             <UnorderedListOutlined />
           </a>
         </Dropdown>
       </div>
-      <div style={{ display: 'flex', justifyContent: 'center', position: 'absolute', bottom: '20px', right: '14px', color: pureMode ? color : '#000', zIndex: 2, fontSize: '18px' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', position: 'absolute', bottom: '20px', right: '14px', color: store.pureMode ? store.color : '#000', zIndex: 2, fontSize: '18px' }}>
         <Input
           style={{
             width: '50px',
-            textAlign: 'right', outline: 'none', border: 'none', display: 'inline-block', background: 'none', color: pureMode ? color : '#000',
+            textAlign: 'right', outline: 'none', border: 'none', display: 'inline-block', background: 'none', color: store.pureMode ? store.color : '#000',
             fontSize: '18px',
             position: 'relative',
             top: '-4px',
@@ -565,16 +648,14 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
         style={{
           maxWidth: "100%",
           maxHeight: "100%",
-          overflow: isSelecting ? 'hidden' : 'auto',
+          overflow: store.isSelecting ? 'hidden' : 'auto',
           position: "absolute",
           left: '50%',
           top: '50%',
           transform: 'translate(-50%, -50%)'
         }}
-        className={["pdf-container", pureMode ? 'pure-text-mode' : ''].join(' ')}
+        className={["pdf-container", store.pureMode ? 'pure-text-mode' : ''].join(' ')}
       >
-
-
         <div
           style={{
             width: `${placeholderWidth}px`,
@@ -590,49 +671,21 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
             width: `${placeholderWidth}px`,
           }}
           className={styles.pdfWrapper}
-          // onPointerDown={(e) => {
-          //   console.log('e.nativeEvent.pointerId:', e.nativeEvent.pointerId);
-          //   (e.target as any).releasePointerCapture(e.nativeEvent.pointerId);
-          //   if (selectLongPressTimer) {
-          //     clearTimeout(selectLongPressTimer);
-          //   }
-          //   setPointerDownTarget(e.target as HTMLElement);
-          //   setSelectLongPressTimer(setTimeout(() => {
-          //     checkSelectStart(e);
-          //     setSelectLongPressTimer(null);
-          //   }, 500))
-          // }}
-          // onPointerMove={(e) => {
-          //   if (e.target !== pointerDownTarget) {
-          //     if (selectLongPressTimer !== null) {
-          //       clearTimeout(selectLongPressTimer);
-          //       setSelectLongPressTimer(null);
-          //     }
-          //     checkSelect(e);
-          //   }
-          // }}
-
-          // onPointerUp={(e) => {
-          //   checkSelectEnd(e);
-          //   if (selectLongPressTimer) {
-          //     clearTimeout(selectLongPressTimer);
-          //     setSelectLongPressTimer(null);
-          //   }
-          // }}
-
           onTouchStart={onTouchStart}
-          onTouchMove={onTouchMove}
+          onTouchMove={(e) => touchMove$.next(e)}
           onTouchEnd={onTouchEnd}
           onMouseDown={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
             if (isPc) {
               console.log('mouseDown:', e);
               onTouchStart(e);
             }
           }}
           onMouseMove={(e) => {
-            if (isPc && isSelecting) {
+            if (isPc && store.isSelecting) {
               console.log('onMouseMove:', e);
-              onTouchMove(e);
+              touchMove$.next(e);
             }
           }}
           onMouseUp={(e) => {
@@ -640,22 +693,17 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
               onTouchEnd(e);
             }
           }}
-          // onClick={(e) => {
-          //   const target = e.target as HTMLElement;
-          //   if (target.classList.contains('pdf_page_word')) {
-          //     tapWord$.next(target.textContent || '');
-          //   }
-          // }}
         >
-          <InnerPdf scale={scale} filePath={filePath} onGetNumPages={_setNumPages} onGetPageLoaded={_setPageLoaded} pageRef={pageRef} pageNumber={pageNumber} fitWidth={fitWidth} pageWidth={pageWidth} fitHeight={fitHeight} pageHeight={pageHeight} onGetWordIndexMap={_onGetWordIndexMap} />
+          <InnerPdf scale={scale} filePath={filePath} onGetNumPages={_setNumPages} onGetPageLoaded={_setPageLoaded} pageRef={pageRef} pageNumber={pageNumber} fitWidth={fitWidth} pageWidth={pageWidth} fitHeight={fitHeight} pageHeight={pageHeight}
+            onGetWordIndexMap={onGetWordIndexMap} />
         </div>
       </div>
-      <Modal title="颜色设置" visible={isModalVisible} onOk={() => {
+      <Modal title="颜色设置" visible={store.isModalVisible} onOk={() => {
         setIsModalVisible(false);
-        localStorage.setItem('pdf-font-color', colorEditing);
-        localStorage.setItem('pdf-background-color', backgroundColorEditing);
-        setColor(colorEditing);
-        setBackgroundColor(backgroundColorEditing);
+        localStorage.setItem('pdf-font-color', store.colorEditing);
+        localStorage.setItem('pdf-background-color', store.backgroundColorEditing);
+        setColor(store.colorEditing);
+        setBackgroundColor(store.backgroundColorEditing);
       }}
         okText="save"
         onCancel={() => {
@@ -663,11 +711,11 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
         }}
       >
         <div>文本颜色：</div>
-        <HexColorPicker color={colorEditing} onChange={setColorEditing} />
+        <HexColorPicker color={store.colorEditing} onChange={setColorEditing} />
         <div>背景颜色：</div>
-        <HexColorPicker color={backgroundColorEditing} onChange={setBackgroundColorEditing} />
+        <HexColorPicker color={store.backgroundColorEditing} onChange={setBackgroundColorEditing} />
         <div>效果：</div>
-        <div style={{ color: colorEditing, backgroundColor: backgroundColorEditing }}>Hello World!</div>
+        <div style={{ color: store.colorEditing, backgroundColor: store.backgroundColorEditing }}>Hello World!</div>
       </Modal>
     </div>
   );

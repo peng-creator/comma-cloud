@@ -121,8 +121,11 @@ export class PageInternal extends PureComponent {
   onLoadSuccess = () => {
     const { onLoadSuccess, registerPage } = this.props;
     const { page } = this.state;
-
-    if (onLoadSuccess) onLoadSuccess(makePageCallback(page, this.scale));
+    try {
+      if (onLoadSuccess) onLoadSuccess(makePageCallback(page, this.scale));
+    } catch(e) {
+      console.log(e);
+    }
 
     if (registerPage) registerPage(this.pageIndex, this.pageElement.current);
   };

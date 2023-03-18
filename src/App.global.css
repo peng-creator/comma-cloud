@@ -451,6 +451,13 @@ body {
   left: 0;
   z-index: 6;
 }
+.fullScreenZone > .mosaic-window-toolbar {
+  display: none;
+}
+
+.fullScreenZone > .mosaic-window-body > div {
+  padding: 0 !important;
+}
 
 .mosaic.mosaic-blueprint-theme.bp3-dark .mosaic-window-toolbar, 
 .mosaic.mosaic-blueprint-theme.bp3-dark .mosaic-window-additional-actions-bar {

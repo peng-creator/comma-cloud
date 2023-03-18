@@ -36,6 +36,8 @@ export const Dict = ({
     <div
       style={{
         position: "relative",
+        display: 'flex',
+        height: '100%',
         ...(style || {}),
       }}
     >

@@ -13,6 +13,9 @@ import {
   LeftOutlined,
   PauseCircleOutlined,
   FontSizeOutlined,
+  StepForwardOutlined,
+  StepBackwardOutlined,
+  FolderOutlined,
 } from "@ant-design/icons";
 import { LazyInput } from "../../compontent/LazyInput/LazyInput";
 import { millisecondsToTime } from "../../utils/time";
@@ -26,6 +29,10 @@ import { addSubtitleInput$, fetchStandaloneProps$, openStandaloneSubtitle$, stan
 import { defaultIntensiveStrategy } from "../../type/SubtitlePlayStrategy";
 import { Icon } from "@blueprintjs/core";
 import { reloadSubtitlesOfVideo } from "../../service/http/Subtitle";
+import { setUserPreference, UserPreference, userPreference$ } from "../../state/preference";
+import { playSubtitle$ } from "../../state/video";
+import { getPlaylistByPlayingVideo } from "../../state/playlist";
+import { openDir$ } from "../../state/resourceLoader";
 
 export const SubtitleComponent = ({
   title,
@@ -95,7 +102,9 @@ export const SubtitleComponent = ({
   }, [virtuoso, scrollToIndex, scrollTo]);
 
   const [singleMode, setSingleMode] = useState(true);
-  const [subtitleFontSize, setSubtitleFontSize] = useState(18);
+  const [userPreference] = useBehavior(userPreference$, {} as UserPreference);
+  const subtitleFontSize = userPreference.subtitleFontSize;
+  const playlistPromise = getPlaylistByPlayingVideo(filePath);
 
   useEffect(() => {
     if (!fromZoneId) {
@@ -803,7 +812,7 @@ export const SubtitleComponent = ({
           type="text"
           style={{ color: "#ccc" }}
           onClick={() => {
-            setSubtitleFontSize(subtitleFontSize - 1);
+            setUserPreference({...userPreference, subtitleFontSize: subtitleFontSize - 1});
           }}
         >
           <FontSizeOutlined /> -
@@ -812,7 +821,7 @@ export const SubtitleComponent = ({
           type="text"
           style={{ color: "#ccc" }}
           onClick={() => {
-            setSubtitleFontSize(subtitleFontSize + 1);
+            setUserPreference({...userPreference, subtitleFontSize: subtitleFontSize + 1});
           }}
         >
           <FontSizeOutlined /> +
@@ -832,6 +841,63 @@ export const SubtitleComponent = ({
         >
           <Icon icon="duplicate" size={18} color="#ccc" />
         </Button>}
+        <Button
+          type="text"
+          style={{ color: "#ccc", fontSize: '20px' }}
+          onClick={() => {
+            console.log('current:', filePath);
+            playlistPromise.then(playlist => {
+              const index = playlist.findIndex((file) => filePath === file);
+              let prevIndex = index - 1;
+              if (prevIndex === -1) {
+                prevIndex = playlist.length - 1;
+              }
+              playSubtitle$.next({
+                file: playlist[prevIndex],
+                start: 0,
+                end: 0,
+                subtitles: []
+              });
+            });
+          }}
+        >
+          <StepBackwardOutlined style={{position: 'relative', top: '-5px'}}/>
+        </Button>
+        <Button
+          type="text"
+          style={{ color: "#ccc", fontSize: '20px' }}
+          onClick={() => {
+            const dirs = filePath.split('/');
+            dirs.pop();
+            const parentDir = dirs.join('/');
+            console.log('open parentDir:', parentDir);
+            openDir$.next(parentDir);
+          }}
+        >
+          <FolderOutlined style={{position: 'relative', top: '-5px'}}/>
+        </Button>
+        <Button
+          type="text"
+          style={{ color: "#ccc",  fontSize: '20px' }}
+          onClick={() => {
+            console.log('current:', filePath);
+            playlistPromise.then(playlist => {
+              const index = playlist.findIndex((file) => filePath === file);
+              let nextIndex = index + 1;
+              if (nextIndex === playlist.length) {
+                nextIndex = 0;
+              }
+              playSubtitle$.next({
+                file: playlist[nextIndex],
+                start: 0,
+                end: 0,
+                subtitles: []
+              });
+            });
+          }}
+        >
+          <StepForwardOutlined style={{position: 'relative', top: '-5px'}}/>
+        </Button>
       </div>
       {!singleMode && <Virtuoso
         style={{ flexGrow: 1, overflowX: 'hidden' }}

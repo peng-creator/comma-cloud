@@ -311,7 +311,7 @@ const Component = ({ layoutMode }: { layoutMode: number }) => {
                       setCurrentCard(card);
                     }}
                   >
-                    {card.clean && "*"} {stringFolder(card.front.word, 10)}
+                    {card.clean && "*"} {stringFolder(card?.front?.word || '', 10)}
                   </Button>
                 </div>
               );
