@@ -425,7 +425,7 @@ export const Video = ({
     }
     let timer = setInterval(() => {
       const currentTime = player.getCurrentTime() * 1000;
-      if (store.intensiveSubtitle === null) {
+      if (store.intensiveSubtitle === null || store.intensiveSubtitle === undefined) {
         let subtileFound = findSubtitleByTime(currentTime);
         const currentSubtitle = store.subtitles[store.scrollToIndex];
         if (subtileFound) {
