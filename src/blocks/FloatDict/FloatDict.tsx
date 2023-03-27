@@ -1,7 +1,8 @@
-import { Modal, Skeleton } from "antd";
+import { Button, Modal, Skeleton } from "antd";
 import React,{ CSSProperties, useEffect, useState } from "react";
 import { skip, startWith } from "rxjs";
 import { useBehavior } from "../../state";
+import { showFloatCardMaker$ } from "../../state/cardMaker";
 import { UserPreference, userPreference$ } from "../../state/preference";
 import { tapSearch$, } from "../../state/search";
 
@@ -53,7 +54,7 @@ export const FloatDict = ({
             pointerEvents: 'auto',
             overflow: 'hidden'
         }}>
-            <div style={{ width: '100%', color: '#ccc', fontSize: '14px', height: '100%', display: 'flex' }}>
+            <div style={{ width: '100%', color: '#ccc', fontSize: '14px', height: 'calc(100% - 60px)', display: 'flex' }}>
                 <iframe
                     title={'有道词典'}
                     src={"https://mobile.youdao.com/dict?le=eng&q={}" .replace("{}", searchContent)}
@@ -61,6 +62,11 @@ export const FloatDict = ({
                     style={{ flexGrow: 1 }}
                 ></iframe>
             </div>
+            <Button style={{width: '100%', height: '60px', fontSize: '20px'}} onClick={() => {
+              showFloatCardMaker$.next(true);
+              setShow(false);
+              setSearchContent('');
+            }}>制作卡片</Button>
         </div>;
     }}
     footer={null}

@@ -47,6 +47,7 @@ import { FloatDict } from "../FloatDict/FloatDict";
 import { setUserPreference, UserPreference, userPreference$ } from "../../state/preference";
 import { openDir$ } from "../../state/resourceLoader";
 import { PlayHow, SubtitlePlayStrategy } from "../../type/SubtitlePlayStrategy";
+import { FloatCardMaker } from "../FloatCardMaker/FloatCardMaker";
 
 // iOS only
 window.addEventListener('statusTap', function () {
@@ -364,6 +365,7 @@ export const App = () => {
     <div style={{ height: "100%", position: "relative" }}>
       <TapCache />
       <FloatDict></FloatDict>
+      <FloatCardMaker></FloatCardMaker>
       {showResourceLoader && <ResourceLoader
         visible={showResourceLoader}
         defaultDir={defaultDir}

@@ -25,6 +25,8 @@ import { IonList, IonItem, IonLabel } from "@ionic/react";
 import { Virtuoso } from "react-virtuoso";
 import { playSubtitle$ } from "../../state/video";
 import { checkClipboard } from "../../utils/clipboard";
+import { useBehavior } from "../../state";
+import { subtitleToBeAdded$ } from "../../state/cardMaker";
 
 const MY_NAMESPACE = "2a671a64-40d5-491e-99b0-da01ff1f3341";
 export const CARD_COLLECTION_NAMESPACE = "3b671a64-40d5-491e-99b0-da01ff1f3341";
@@ -65,6 +67,7 @@ const Component = ({ layoutMode }: { layoutMode: number }) => {
   const [searchFocus, setSearchFocus] = useState(false);
   const searchRef = useRef<any>(null);
   const [copiedText, setCopiedText] = useState('');
+  const [subtitleToBeAdded, setSubtitleToBeAdded] = useBehavior(subtitleToBeAdded$, null);
 
   useEffect(() => {
     const sp = saveCard$.pipe(debounceTime(1000)).subscribe({
@@ -339,7 +342,16 @@ const Component = ({ layoutMode }: { layoutMode: number }) => {
                   overflowY: "auto",
                 }}
               >
-                <div>摘抄：</div>
+                {subtitleToBeAdded && <div style={{ background: '#000', color: '#ccc', padding: '5px', borderRadius: '5px'}}>
+                  <div>可加入卡片的字幕片段</div>
+                  <div style={{display: 'flex'}}>
+                    <div style={{flexGrow: 1}}>
+                    {subtitleToBeAdded.subtitles.map((s, k) => <div style={{color: 'rgb(169, 118, 236)'}} key={k}>{stringFolder(s, 200)}</div>)}
+                    </div>
+                  <Button onClick={() => addSubtitle$.next(subtitleToBeAdded)}>加入当前卡片</Button>
+                  </div>
+                  </div>}
+                <div>已加入卡片的摘抄：</div>
                 <div style={{ flex: 1, width: "100%" }}>
                   {currentCard.front.subtitles.length === 0 &&
                     (currentCard.front.pdfNote === undefined ||
@@ -493,7 +505,7 @@ const Component = ({ layoutMode }: { layoutMode: number }) => {
                 }}
               >
                 <div>解释：</div>
-                {copiedText.trim() && <div style={{ margin: '14px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+                {/* {copiedText.trim() && <div style={{ margin: '14px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
                   <span style={{ marginRight: '14px' }}>{copiedText}</span><Button type="ghost" style={{ color: '#ccc' }} onClick={() => {
                     currentCard.back += `\n${copiedText}`;
                     currentCard.clean = false;
@@ -501,7 +513,7 @@ const Component = ({ layoutMode }: { layoutMode: number }) => {
                     saveCard$.next(currentCard);
                   }}>填入</Button>
                 </div>
-                }
+                } */}
                 <Input.TextArea
                   value={currentCard.back}
                   onChange={(e) => {

@@ -33,6 +33,7 @@ import { playSubtitle$ } from "../../state/video";
 import { getPlaylistByPlayingVideo } from "../../state/playlist";
 import { openDir$ } from "../../state/resourceLoader";
 import { defaultIntensiveStrategy } from "../../type/SubtitlePlayStrategy";
+import { subtitleToBeAdded$ } from "../../state/cardMaker";
 
 export const SubtitleComponent = ({
   title,
@@ -656,6 +657,11 @@ export const SubtitleComponent = ({
                       ]}
                       onWordClick={(word) => {
                         tapWord$.next(word);
+                        subtitleToBeAdded$.next({
+                          file: filePath,
+                          title,
+                          ...item,
+                        });
                       }}
                       value={s}
                       onChange={(value) => {
