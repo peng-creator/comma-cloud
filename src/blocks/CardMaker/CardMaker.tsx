@@ -26,7 +26,7 @@ import { Virtuoso } from "react-virtuoso";
 import { playSubtitle$ } from "../../state/video";
 import { checkClipboard } from "../../utils/clipboard";
 import { useBehavior } from "../../state";
-import { subtitleToBeAdded$ } from "../../state/cardMaker";
+import { pdfNoteToBeAdded$, subtitleToBeAdded$ } from "../../state/cardMaker";
 
 const MY_NAMESPACE = "2a671a64-40d5-491e-99b0-da01ff1f3341";
 export const CARD_COLLECTION_NAMESPACE = "3b671a64-40d5-491e-99b0-da01ff1f3341";
@@ -68,6 +68,7 @@ const Component = ({ layoutMode }: { layoutMode: number }) => {
   const searchRef = useRef<any>(null);
   const [copiedText, setCopiedText] = useState('');
   const [subtitleToBeAdded, setSubtitleToBeAdded] = useBehavior(subtitleToBeAdded$, null);
+  const [pdfNoteToBeAdded] = useBehavior(pdfNoteToBeAdded$, null);
 
   useEffect(() => {
     const sp = saveCard$.pipe(debounceTime(1000)).subscribe({
@@ -349,6 +350,15 @@ const Component = ({ layoutMode }: { layoutMode: number }) => {
                     {subtitleToBeAdded.subtitles.map((s, k) => <div style={{color: 'rgb(169, 118, 236)'}} key={k}>{stringFolder(s, 200)}</div>)}
                     </div>
                   <Button onClick={() => addSubtitle$.next(subtitleToBeAdded)}>加入当前卡片</Button>
+                  </div>
+                  </div>}
+                  {pdfNoteToBeAdded && <div style={{ background: '#000', color: '#ccc', padding: '5px', borderRadius: '5px'}}>
+                  <div>可加入卡片的PDF片段</div>
+                  <div style={{display: 'flex'}}>
+                    <div style={{flexGrow: 1}}>
+                    {pdfNoteToBeAdded.content}
+                    </div>
+                  <Button onClick={() => pdfNote$.next(pdfNoteToBeAdded)}>加入当前卡片</Button>
                   </div>
                   </div>}
                 <div>已加入卡片的摘抄：</div>

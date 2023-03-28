@@ -50,7 +50,7 @@ export const tapSearch$ = tapWord$.pipe(
         .replace(/^\p{P}+/u, "")
         .replace(/\p{P}+$/u, "");
   }),
-  shareReplay(1),
+  // shareReplay(1),
 );
 
 export const textSearch$ = new Subject<string>();

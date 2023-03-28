@@ -6,14 +6,15 @@ import { useContextMenu } from "react-contexify";
 import { setContextMenu } from "../../state/contextMenu";
 import { pdfNote$ } from "../CardMaker/CardMaker";
 import { PDFNote } from "../../type/PDFNote";
-import { searchSentence, tapWord$ } from "../../state/search";
-import { auditTime, debounceTime, Subject } from "rxjs";
+import { searchSentence, tapSearch$, tapWord$ } from "../../state/search";
+import { auditTime, bufferWhen, debounceTime, filter, Subject, take, tap } from "rxjs";
 import { host } from "../../utils/host";
 import { DownOutlined, LeftOutlined, RightOutlined, UnorderedListOutlined } from "@ant-design/icons";
 import { HexColorPicker } from "react-colorful";
 import { complementary, hex2rgbObject } from 'lumino';
 import { useStore } from "../../store";
 import { saveRecord } from "../../service/http/Records";
+import { pdfNoteToBeAdded$ } from "../../state/cardMaker";
 
 const MENU_ID = "MENU_ID";
 
@@ -25,12 +26,30 @@ export type MarkMap = {
   [key: string]: string | undefined;
 };
 
-const toutchWord$ = new Subject<string>();
+const toutchWord$ = new Subject<{wordIndex: number; word: string; page: number; file: string;}>();
 toutchWord$.pipe(debounceTime(100)).subscribe({
-  next(value) {
-    tapWord$.next(value);
+  next({word}) {
+    tapWord$.next(word);
   },
 });
+
+
+toutchWord$.pipe(
+  debounceTime(100),
+  bufferWhen(() => tapSearch$),
+  filter(value => value.length > 0),
+).subscribe({
+  next(wordTaps) {
+      pdfNoteToBeAdded$.next({
+        content: wordTaps.map(({word}) => word).join(' '),
+        start: -1,
+        end: -1,
+        page: wordTaps[0].page,
+        file: wordTaps[0].file,
+        discreteIndexes: wordTaps.map(({wordIndex}) => wordIndex),
+      })
+  },
+})
 
 function detectIsPC() {
   var ua = window.navigator.userAgent;
@@ -257,9 +276,9 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
     }
   }, [outSideNoteOpened, note]);
 
-  const highlight = useCallback((start: number, end: number) => {
+  const highlight = useCallback((start: number, end: number, discreteIndexes: number[] = []) => {
     store.wordIndexMap.forEach((index, ele) => {
-      if (index >= start && index <= end) {
+      if ((index >= start && index <= end) || discreteIndexes.includes(index)) {
         if (store.pureMode) {
           ele.style.background = store.color || '#000';
           ele.style.color = store.backgroundColor || '#fff';
@@ -289,8 +308,8 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
       setTimeout(() => {
         const pdfPage = pageRef.current;
         if (pdfPage) {
-          const { start, end } = note;
-          highlight(start, end);
+          const { start, end, discreteIndexes } = note;
+          highlight(start, end, discreteIndexes);
           setOutSideNoteOpened(true);
         }
       }, 200);
@@ -384,6 +403,7 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
           {
             onClick: () => {
               searchSentence(sentence);
+              pdfNoteToBeAdded$.next(pdfNote);
             },
             title: '翻译',
           },
@@ -418,6 +438,7 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
             {
               onClick: () => {
                 searchSentence(createdNote.content);
+                pdfNoteToBeAdded$.next(createdNote);
               },
               title: '翻译',
             },
@@ -432,7 +453,12 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
         ]);
         show(e);
       } else if (target === store.pointerDownTarget && targetIsWordEl) {
-        toutchWord$.next(target.textContent || '');
+        toutchWord$.next({
+          word: target.textContent || '',
+          wordIndex: store.wordIndexMap.get(target) || -1,
+          file,
+          page: pageNumber,
+        });
       }
     } else if (createdNote !== null && target === store.pointerDownTarget) {
       console.log('checkSelectEnd');
@@ -443,7 +469,12 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
       hideAll();
     } else if (target === store.pointerDownTarget && targetIsWordEl) {
       console.log('checkSelectEnd')
-      toutchWord$.next(target.textContent || '');
+      toutchWord$.next({
+        word: target.textContent || '',
+        wordIndex: store.wordIndexMap.get(target) || -1,
+        file,
+        page: pageNumber,
+      });
     } else {
       console.log('checkSelectEnd');
     }
