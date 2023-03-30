@@ -48,6 +48,8 @@ import { setUserPreference, UserPreference, userPreference$ } from "../../state/
 import { openDir$ } from "../../state/resourceLoader";
 import { PlayHow, SubtitlePlayStrategy } from "../../type/SubtitlePlayStrategy";
 import { FloatCardMaker } from "../FloatCardMaker/FloatCardMaker";
+import { FloatVideo } from "../FloatVideo/FloatVideo";
+import { FloatPDF } from "../FloatPDF/FloatPDF";
 
 // iOS only
 window.addEventListener('statusTap', function () {
@@ -366,6 +368,8 @@ export const App = () => {
       <TapCache />
       <FloatDict></FloatDict>
       <FloatCardMaker></FloatCardMaker>
+      <FloatVideo></FloatVideo>
+      <FloatPDF></FloatPDF>
       {showResourceLoader && <ResourceLoader
         visible={showResourceLoader}
         defaultDir={defaultDir}

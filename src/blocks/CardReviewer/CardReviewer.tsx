@@ -6,7 +6,6 @@ import { v5 as uuidv5 } from 'uuid';
 import { BehaviorSubject } from 'rxjs';
 import { FlashCard } from '../../type/FlashCard';
 import { searchSentence } from '../../state/search';
-import { playSubtitle$ } from '../../state/video';
 import { stringFolder } from '../../utils/string';
 import { CARD_COLLECTION_NAMESPACE, openNote$, saveCard$ } from '../CardMaker/CardMaker';
 import {
@@ -16,6 +15,8 @@ import {
   searchCardCollections,
 } from "../../service/http/Card";
 import { reverse } from 'lodash';
+import { playFloatVideoSubtitle$ } from '../../state/video';
+import { openFloatPDFNote$ } from '../../state/pdf';
 
 const loadNextCardAction$ = new BehaviorSubject<any>(1);
 
@@ -173,11 +174,11 @@ const Component = () => {
                   key={index}
                   tabIndex={0}
                   onClick={() => {
-                    playSubtitle$.next(subtitle);
+                    playFloatVideoSubtitle$.next(subtitle);
                   }}
                   onKeyDown={(e) => {
                     if (e.key.toLowerCase() === 'enter') {
-                      playSubtitle$.next(subtitle);
+                      playFloatVideoSubtitle$.next(subtitle);
                     }
                   }}
                   style={{
@@ -196,14 +197,18 @@ const Component = () => {
                   key={index}
                   tabIndex={0}
                   onClick={() => {
-                    openNote$.next(pdfNote);
+                    openFloatPDFNote$.next(pdfNote);
+                    console.log('openFloatPDFNote:', pdfNote);
+                    // openNote$.next(pdfNote);
                     // if (pdfNote.file) {
                     //   openPdf$.next(pdfNote.file);
                     // }
                   }}
                   onKeyDown={(e) => {
                     if (e.key.toLowerCase() === 'enter') {
-                      openNote$.next(pdfNote);
+                      // openNote$.next(pdfNote);
+                      console.log('openFloatPDFNote:', pdfNote);
+                      openFloatPDFNote$.next(pdfNote);
                       // if (pdfNote.file) {
                       //   openPdf$.next(pdfNote.file);
                       // }
