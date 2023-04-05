@@ -38,9 +38,9 @@ export const FloatDict = ({
 
   return (
 <Modal
-    width="95%"
+    width="90%"
     style={{
-        height: '50%',
+        height: '90%',
         top: '50%',
         transform: 'translate(0, -50%)',
         minHeight: '550px',
@@ -52,9 +52,10 @@ export const FloatDict = ({
             width: '100%',
             borderRadius: '14px',
             pointerEvents: 'auto',
+            position: 'fixed',
             overflow: 'hidden'
         }}>
-            <div style={{ width: '100%', color: '#ccc', fontSize: '14px', height: 'calc(100% - 60px)', display: 'flex' }}>
+            <div style={{ width: '100%', color: '#ccc', fontSize: '14px', height: 'calc(100% - 60px)', display: 'flex', borderRadius: '14px 14px 0 0', overflow: 'hidden'}}>
                 <iframe
                     title={'有道词典'}
                     src={"https://mobile.youdao.com/dict?le=eng&q={}" .replace("{}", searchContent)}

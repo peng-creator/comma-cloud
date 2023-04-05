@@ -1,8 +1,8 @@
 import React, { useRef, useState } from 'react';
-import { Input, Modal } from 'antd';
+import { Button, Input, Modal } from 'antd';
 import { useContextMenu } from 'react-contexify';
 import { DynamicMenu, setContextMenu } from '../../state/contextMenu';
-import { EditOutlined, EllipsisOutlined } from '@ant-design/icons';
+import { EditOutlined, EllipsisOutlined, SearchOutlined } from '@ant-design/icons';
 
 const MENU_ID = 'MENU_ID';
 
@@ -16,6 +16,8 @@ export const LazyInput = ({
   canEdit,
   showMenuOnClick,
   showEditBtn,
+  showSearchBtn,
+  onSearch,
 }: {
   value: any;
   menu?: DynamicMenu;
@@ -26,6 +28,8 @@ export const LazyInput = ({
   canEdit?: boolean;
   showMenuOnClick: boolean;
   showEditBtn: boolean;
+  showSearchBtn?: boolean;
+  onSearch?: () => void;
 }) => {
   const inputRef = useRef<any>();
   const [editing, setEditing] = useState(false);
@@ -88,6 +92,22 @@ export const LazyInput = ({
           alignItems: 'center',
         }}
       >
+       {showSearchBtn && <Button
+          style={{
+            color: "#ccc",
+            fontSize: "20px",
+            display: "flex",
+            justifyContent: "center",
+          }}
+          type="text"
+          onClick={() => {
+            if (onSearch) {
+              onSearch();
+            }
+          }}
+        >
+          <SearchOutlined />
+        </Button>} 
         {content.split(/\s/).map((word: string, index: number) => {
           return (
             <span
@@ -105,7 +125,7 @@ export const LazyInput = ({
             </span>
           );
         })}
-        {showEditBtn && <span style={{marginLeft: '12px', padding: '5px'}} onClick={showContextMenu}><EditOutlined /></span>}
+        {showEditBtn && <span style={{marginLeft: '12px', padding: '5px', color: "#ccc",}} onClick={showContextMenu}><EditOutlined /></span>}
       </div>
       {editing && canEdit ? (
         <Modal

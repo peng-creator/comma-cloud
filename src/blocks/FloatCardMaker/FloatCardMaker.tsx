@@ -18,9 +18,9 @@ export const FloatCardMaker = ({
 
   return (
 <Modal
-    width="95%"
+    width="90%"
     style={{
-        height: '50%',
+        height: 'calc(100% - 50px)',
         top: '50%',
         transform: 'translate(0, -50%)',
         minHeight: '550px',

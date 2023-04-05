@@ -37,6 +37,7 @@ export const FloatPDF = ({
             width: '100%',
             borderRadius: '14px',
             pointerEvents: 'auto',
+            position: 'fixed',
             overflow: 'hidden'
         }}>
           <PDFViewer filePath={pdfNote.file} note={pdfNote}></PDFViewer>

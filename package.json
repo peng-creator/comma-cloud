@@ -61,6 +61,7 @@
     "react-shadow": "^19.0.3",
     "react-virtualized": "^9.22.3",
     "react-virtuoso": "^2.16.1",
+    "react-window": "^1.8.8",
     "rxjs": "^7.5.5",
     "srt-parser-2": "^1.1.7",
     "ssl-proxy": "^1.0.3",

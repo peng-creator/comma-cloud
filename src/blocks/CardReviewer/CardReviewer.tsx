@@ -7,10 +7,11 @@ import { BehaviorSubject } from 'rxjs';
 import { FlashCard } from '../../type/FlashCard';
 import { searchSentence } from '../../state/search';
 import { stringFolder } from '../../utils/string';
-import { CARD_COLLECTION_NAMESPACE, openNote$, saveCard$ } from '../CardMaker/CardMaker';
+import { openNote$, saveCard$ } from '../CardMaker/CardMaker';
 import {
   getCardCollection,
   getCardCollections,
+  getCardToReview,
   saveCard,
   searchCardCollections,
 } from "../../service/http/Card";
@@ -20,49 +21,29 @@ import { openFloatPDFNote$ } from '../../state/pdf';
 
 const loadNextCardAction$ = new BehaviorSubject<any>(1);
 
+let savingPromise: Promise<any> = Promise.resolve();
+
 const Component = () => {
   const [cardToReview, setCardToReview] = useState<FlashCard | null>(null);
   const [showBack, setShowBack] = useState(false);
   const [recall, setRecall] = useState<string>('');
 
   useEffect(() => {
-    let currentCollectionIndex = 0;
     let cardsToReview = [] as FlashCard[];
 
     const sp = loadNextCardAction$.subscribe({
       next: async () => {
         setRecall('');
-        if (cardsToReview.length > 0) {
-          // 从缓存中获取。
-          const card = cardsToReview.shift();
-          if (card !== undefined) {
-            setCardToReview(card);
-            setShowBack(false);
-            return;
-          }
+        if (cardsToReview.length === 0) {
+          await savingPromise;
+          cardsToReview = await getCardToReview(); // 等待集合列表加载完毕
         }
-        let collectionKeywordList = await getCardCollections(); // 等待集合列表加载完毕
-        collectionKeywordList = reverse(collectionKeywordList);
-        while (collectionKeywordList.length > currentCollectionIndex) {
-          const keyword = collectionKeywordList[currentCollectionIndex];
-          currentCollectionIndex += 1;
-          let flashCards = await getCardCollection(keyword);
-          console.log(`cards to review of ${keyword} before filter:`, flashCards);
-          flashCards = flashCards.filter((card) => {
-            return card.dueDate <= Date.now();
-          });
-          console.log(`cards to review of ${keyword}:`, flashCards);
-          if (flashCards.length > 0) {
-            const card = flashCards.shift();
-            if (flashCards.length > 0) {
-              cardsToReview = flashCards;
-            }
-            if (card !== undefined) {
-              setCardToReview(card);
-              setShowBack(false);
-              return;
-            }
-          }
+        // 从缓存中获取。
+        const card = cardsToReview.shift();
+        if (card !== undefined) {
+          setCardToReview(card);
+          setShowBack(false);
+          return;
         }
         setCardToReview(null);
         setShowBack(false);
@@ -122,7 +103,7 @@ const Component = () => {
           ...style,
         }}
         onClick={() => {
-          practiceAndSave(cardToReview, grade);
+          savingPromise = practiceAndSave(cardToReview, grade);
           loadNextCardAction$.next(1);
         }}
       >

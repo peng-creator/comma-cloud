@@ -4,6 +4,7 @@ import { Subtitle } from './Subtitle';
 
 export interface FlashCard extends SuperMemoItem {
   id: string;
+  title: string;
   front: {
     word: string;
     subtitles: Subtitle[];

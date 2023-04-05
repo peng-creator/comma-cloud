@@ -16,6 +16,7 @@ import {
   StepForwardOutlined,
   StepBackwardOutlined,
   FolderOutlined,
+  MoreOutlined,
 } from "@ant-design/icons";
 import { LazyInput } from "../../compontent/LazyInput/LazyInput";
 import { millisecondsToTime } from "../../utils/time";
@@ -321,49 +322,107 @@ export const SubtitleComponent = ({
           >
             <RetweetOutlined />
           </Button>
-
           <Button
-            style={{
-              color: "#ccc",
-              fontSize: "20px",
-              display: "flex",
-              justifyContent: "center",
-            }}
-            type="text"
-            onClick={() => {
-              searchSentence(localSubtitles.join(" "));
-            }}
-          >
-            <SearchOutlined />
-          </Button>
-          <Popconfirm
-            title="确定要删除当前字幕？"
-            onConfirm={() => {
-              const nextSubtitles = [
-                ...subtitles.slice(0, index),
-                ...subtitles.slice(index + 1),
-              ];
+          type="text"
+          style={{ background: intensive ? 'rgb(169, 118, 236)' : 'none' }}
+          onClick={() => {
+            onIntensiveChange(!intensive)
+            message.info(!intensive ? '精听模式已打开' : '精听模式已关闭');
+          }}
+        >
+          <Icon icon="lightning" size={18} color="#ccc" />
+        </Button>
+        <Button
+          type="text"
+          style={{ color: "#ccc", fontSize: '20px' }}
+          onClick={() => {
+            console.log('current:', filePath);
+            playlistPromise.then(playlist => {
+              const index = playlist.findIndex((file) => filePath === file);
+              let prevIndex = index - 1;
+              if (prevIndex === -1) {
+                prevIndex = playlist.length - 1;
+              }
+              playSubtitle$.next({
+                file: playlist[prevIndex],
+                start: 0,
+                end: 0,
+                subtitles: []
+              });
+            });
+          }}
+        >
+          <StepBackwardOutlined style={{ position: 'relative', top: '-5px' }} />
+        </Button>
+        <Button
+          type="text"
+          style={{ color: "#ccc", fontSize: '20px' }}
+          onClick={() => {
+            const dirs = filePath.split('/');
+            dirs.pop();
+            const parentDir = dirs.join('/');
+            console.log('open parentDir:', parentDir);
+            openDir$.next(parentDir);
+          }}
+        >
+          <FolderOutlined style={{ position: 'relative', top: '-5px' }} />
+        </Button>
+        <Button
+          type="text"
+          style={{ color: "#ccc", fontSize: '20px' }}
+          onClick={() => {
+            console.log('current:', filePath);
+            playlistPromise.then(playlist => {
+              const index = playlist.findIndex((file) => filePath === file);
+              let nextIndex = index + 1;
+              if (nextIndex === playlist.length) {
+                nextIndex = 0;
+              }
+              playSubtitle$.next({
+                file: playlist[nextIndex],
+                start: 0,
+                end: 0,
+                subtitles: []
+              });
+            });
+          }}
+        >
+          <StepForwardOutlined style={{ position: 'relative', top: '-5px' }} />
+        </Button>
+          <Dropdown placement="bottom" arrow overlay={<Menu>
+            <Menu.Item onClick={() => {
+              const lengthBeforMerge = subtitles.length;
+              const nextSubtitles = adjustStartFromIndex(adjustEndFromIndex(subtitles, 0, 50), 0, -50)
+                .reduce((acc, curr) => {
+                  let last = acc[acc.length - 1];
+                  console.log('debug merge, last subtitle:', last);
+                  let shouldMerge = last && ((last.end - last.start < 10000) && last.end >= curr.start || last.end > curr.end);
+                  if (shouldMerge) {
+                    const merged = mergeSubtitles(last, curr);
+                    last.end = merged.end;
+                    last.subtitles = merged.subtitles;
+                  } else {
+                    if (last && last.end >= curr.start) {
+                      curr.start = last.end + 50;
+                      last.end -= 50;
+                    }
+                    acc.push(curr);
+                  }
+                  return acc;
+                }, [] as Subtitle[]);
+              const lengthAfterMerge = nextSubtitles.length;
+              const mergedLength = lengthBeforMerge - lengthAfterMerge;
               onSubtitlesChange(nextSubtitles);
-            }}
-            okText="Yes"
-            cancelText="No"
-          >
-            <Button
-              type="link"
-              style={{
-                color: "#ccc",
-                fontSize: "20px",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-              }}
-            >
-              <DeleteOutlined></DeleteOutlined>
-            </Button>
-          </Popconfirm>
-          <Popconfirm
-            title="与下一条字幕合并？"
-            onConfirm={() => {
+              if (mergedLength > 0) {
+                message.info(`合并了${mergedLength}条字幕`);
+                seekTo(nextSubtitles[0].start / 1000);
+                onScrollToIndexChange(0);
+                onLoopingSubtitleChange(null);
+              } else {
+                message.info(`未找到相邻的可合并字幕`, 2);
+              }
+            }}>自动合并字幕</Menu.Item>
+            <Menu.Item onClick={() => {
               const nextSubtitle = subtitles[index + 1];
               let nextPlaySubtitleIndex = index;
               if (index < nextPlaySubtitleIndex) {
@@ -380,10 +439,20 @@ export const SubtitleComponent = ({
               );
               playFromStart(nextSubtitles, nextScrollToIndex);
               onScrollToIndexChange(nextScrollToIndex);
-            }}
-            okText="Yes"
-            cancelText="No"
-          >
+            }}>与下一条字幕合并</Menu.Item>
+            <Menu.Item onClick={() => {
+              const nextSubtitles = [
+                ...subtitles.slice(0, index),
+                ...subtitles.slice(index + 1),
+              ];
+              onSubtitlesChange(nextSubtitles);
+            }}>删除本条字幕</Menu.Item>
+            <Menu.Item onClick={() => {
+              reloadSubtitlesOfVideo(filePath).then((nextSubtitles) => {
+                onSubtitlesChange(nextSubtitles);
+              });
+            }}>重新载入字幕</Menu.Item>
+          </Menu>}>
             <Button
               style={{
                 color: "#ccc",
@@ -393,55 +462,19 @@ export const SubtitleComponent = ({
               }}
               type="text"
             >
-              <MergeCellsOutlined
-                style={{
-                  position: "relative",
-                  bottom: "1px",
-                  transform: "rotate(90deg)",
-                }}
-              />
+              <MoreOutlined />
             </Button>
-          </Popconfirm>
-          <Popconfirm
-            title={<div style={{ position: 'relative', top: '-5px' }}>
-            <div style={{ fontSize: '20px' }}>添加当前片段到已打开的卡片</div>
-            <div>请确保您已经打开卡片</div>
-          </div>}
-            onConfirm={() => {
-              const subtitle = subtitles[index];
-              const addToCardSubtitle = {
-                file: filePath,
-                title,
-                ...subtitle,
-              };
-              addSubtitle$.next(addToCardSubtitle);
-              addSubtitleInput$.next(addToCardSubtitle);
-            }}
-            okText="Yes"
-            cancelText="No"
-          >
-          <Button
-            type="text"
-            style={{
-              color: "#ccc",
-              fontSize: "20px",
-              display: "flex",
-              justifyContent: "center",
-            }}
-          >
-            <FileAddOutlined />
-          </Button>
-          </Popconfirm>
+          </Dropdown>
         </div>
         <div style={{
           color: "#ccc",
           display: 'flex',
-          alignItems: 'stretch',
+          alignItems: 'center',
           overflow: 'hidden',
           height: '50px',
-          margin: singleMode ? '14px' : '0',
+          padding: '0 14px'
         }}>
-          {singleMode && <Button disabled={index <= 0} style={{ maxWidth: '50px', minWidth: '50px', height: '50px', color: '#ccc', padding: 0, borderRadius: '50%' }} type="ghost" onClick={() => {
+          {singleMode && <Button disabled={index <= 0} style={{ maxWidth: '30px', minWidth: '30px', height: '30px', color: '#ccc', padding: 0, borderRadius: '50%' }} type="ghost" onClick={() => {
             const item = subtitles[index - 1];
             onPlayingChange(true);
             if (loopingSubtitle !== null) {
@@ -569,7 +602,7 @@ export const SubtitleComponent = ({
               showMenuOnClick
             />
           </div>
-          {singleMode && <Button disabled={index >= (subtitles.length - 1)} style={{ maxWidth: '50px', minWidth: '50px', height: '50px', color: '#ccc', padding: 0, borderRadius: '50%' }} type="ghost" onClick={() => {
+          {singleMode && <Button disabled={index >= (subtitles.length - 1)} style={{ maxWidth: '30px', minWidth: '30px', height: '30px', color: '#ccc', padding: 0, borderRadius: '50%' }} type="ghost" onClick={() => {
             const item = subtitles[index + 1];
             onPlayingChange(true);
             if (loopingSubtitle !== null) {
@@ -609,6 +642,10 @@ export const SubtitleComponent = ({
                 {localSubtitles.map((s: string, subIndex: number) => {
                   return (
                     <LazyInput
+                      showSearchBtn
+                      onSearch={() => {
+                        searchSentence(localSubtitles.join(" "));
+                      }}
                       key={s + subIndex}
                       showEditBtn
                       menu={[
@@ -704,189 +741,6 @@ export const SubtitleComponent = ({
   console.log('render subtitle, scrollToIndex:', scrollToIndex);
   return (
     <div style={{ width: '100%', flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-      <div
-        style={{
-          width: "100%",
-          padding: '5px 0',
-          display: layoutMode === 0 ? 'flex' : 'none',
-          justifyContent: "center",
-          background: "black",
-          flexWrap: 'wrap',
-        }}
-      >
-        <Popconfirm
-          title={<div style={{ position: 'relative', top: '-5px' }}>
-            <div style={{ fontSize: '20px' }}>要合并相邻字幕吗？</div>
-            <div >将每条字幕时间增加50毫秒，然后合并有时间交叉的字幕</div>
-          </div>}
-
-          onConfirm={() => {
-            const lengthBeforMerge = subtitles.length;
-            const nextSubtitles = adjustStartFromIndex(adjustEndFromIndex(subtitles, 0, 50), 0, -50)
-              .reduce((acc, curr) => {
-                let last = acc[acc.length - 1];
-                console.log('debug merge, last subtitle:', last);
-                let shouldMerge = last && ((last.end - last.start < 10000) && last.end >= curr.start || last.end > curr.end);
-                if (shouldMerge) {
-                  const merged = mergeSubtitles(last, curr);
-                  last.end = merged.end;
-                  last.subtitles = merged.subtitles;
-                } else {
-                  if (last && last.end >= curr.start) {
-                    curr.start = last.end + 50;
-                    last.end -= 50;
-                  }
-                  acc.push(curr);
-                }
-                return acc;
-              }, [] as Subtitle[]);
-            const lengthAfterMerge = nextSubtitles.length;
-            const mergedLength = lengthBeforMerge - lengthAfterMerge;
-            onSubtitlesChange(nextSubtitles);
-            if (mergedLength > 0) {
-              message.info(`合并了${mergedLength}条字幕`);
-              seekTo(nextSubtitles[0].start / 1000);
-              onScrollToIndexChange(0);
-              onLoopingSubtitleChange(null);
-            } else {
-              message.info(`已增加每条字幕时长，但未找到相邻的可合并字幕，请重试`, 2);
-            }
-          }}
-          okText="Yes"
-          cancelText="No"
-        >
-          <Button type="text" style={{ color: "#ccc", fontSize: '20px' }}
-          >
-            <MergeCellsOutlined
-              style={{
-                position: "relative",
-                bottom: "7px",
-                transform: "rotate(90deg)",
-              }}
-            />
-          </Button>
-        </Popconfirm>
-        <Popconfirm
-          title={<div style={{ position: 'relative', top: '-5px' }}>
-            <div style={{ fontSize: '20px' }}>要重新载入字幕吗？</div>
-            <div>您对字幕的全部修改将丢失</div>
-          </div>}
-
-          onConfirm={() => {
-            reloadSubtitlesOfVideo(filePath).then((nextSubtitles) => {
-              onSubtitlesChange(nextSubtitles);
-            });
-          }}
-          okText="Yes"
-          cancelText="No"
-        >
-          <Button type="text" style={{ color: "#ccc", fontSize: '18px' }} >
-            <Icon icon="reset" size={18} color="#ccc" style={{ position: 'relative', top: '-6px' }} />
-          </Button>
-        </Popconfirm>
-
-        <Button
-          type="text"
-          style={{ background: singleMode ? 'none' : 'rgb(169, 118, 236)' }}
-          onClick={() => {
-            setSingleMode(!singleMode);
-            message.info(singleMode ? '已打开列表视图' : '已关闭列表视图');
-          }}
-        >
-          <Icon icon="list" size={18} color="#ccc" />
-        </Button>
-        {!singleMode && <Button
-          type="text"
-          style={{ color: "#ccc" }}
-          onClick={() => {
-            scrollTo(scrollToIndex, "auto");
-          }}
-        >
-          <Icon icon="locate" size={18} color="#ccc" />
-        </Button>}
-        <Button
-          type="text"
-          style={{ background: intensive ? 'rgb(169, 118, 236)' : 'none' }}
-          onClick={() => {
-            onIntensiveChange(!intensive)
-            message.info(!intensive ? '精听模式已打开' : '精听模式已关闭');
-          }}
-        >
-          <Icon icon="lightning" size={18} color="#ccc" />
-        </Button>
-        {fromZoneId && <Button
-          type="text"
-          style={{ color: "#ccc" }}
-          onClick={() => {
-            console.log('openStandaloneSubtitle, title:', title);
-            openStandaloneSubtitle$.next({
-              title,
-              filePath,
-              fromZoneId,
-            });
-            message.info('已在新窗口中打开字幕');
-          }}
-        >
-          <Icon icon="duplicate" size={18} color="#ccc" />
-        </Button>}
-        <Button
-          type="text"
-          style={{ color: "#ccc", fontSize: '20px' }}
-          onClick={() => {
-            console.log('current:', filePath);
-            playlistPromise.then(playlist => {
-              const index = playlist.findIndex((file) => filePath === file);
-              let prevIndex = index - 1;
-              if (prevIndex === -1) {
-                prevIndex = playlist.length - 1;
-              }
-              playSubtitle$.next({
-                file: playlist[prevIndex],
-                start: 0,
-                end: 0,
-                subtitles: []
-              });
-            });
-          }}
-        >
-          <StepBackwardOutlined style={{position: 'relative', top: '-5px'}}/>
-        </Button>
-        <Button
-          type="text"
-          style={{ color: "#ccc", fontSize: '20px' }}
-          onClick={() => {
-            const dirs = filePath.split('/');
-            dirs.pop();
-            const parentDir = dirs.join('/');
-            console.log('open parentDir:', parentDir);
-            openDir$.next(parentDir);
-          }}
-        >
-          <FolderOutlined style={{position: 'relative', top: '-5px'}}/>
-        </Button>
-        <Button
-          type="text"
-          style={{ color: "#ccc",  fontSize: '20px' }}
-          onClick={() => {
-            console.log('current:', filePath);
-            playlistPromise.then(playlist => {
-              const index = playlist.findIndex((file) => filePath === file);
-              let nextIndex = index + 1;
-              if (nextIndex === playlist.length) {
-                nextIndex = 0;
-              }
-              playSubtitle$.next({
-                file: playlist[nextIndex],
-                start: 0,
-                end: 0,
-                subtitles: []
-              });
-            });
-          }}
-        >
-          <StepForwardOutlined style={{position: 'relative', top: '-5px'}}/>
-        </Button>
-      </div>
       {!singleMode && <Virtuoso
         style={{ flexGrow: 1, overflowX: 'hidden' }}
         totalCount={subtitles.length}

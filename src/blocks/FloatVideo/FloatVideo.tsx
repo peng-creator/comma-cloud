@@ -49,6 +49,7 @@ export const FloatVideo = ({
             width: '100%',
             borderRadius: '14px',
             pointerEvents: 'auto',
+            position: 'fixed',
             overflow: 'hidden'
         }}>
           <Video style={{height: '100%'}} filePath={subtitle.file || ''} zoneId={subtitle.file || ''} title={subtitle.file || ''} layoutMode={0} subtitle={subtitle}></Video>

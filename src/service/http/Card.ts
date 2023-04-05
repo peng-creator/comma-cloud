@@ -20,3 +20,18 @@ export const saveCard = async (card: FlashCard) => {
   const axios = await axiosInstancePromise;
   return axios.post('/card/', card).then(res => res.data);
 };
+
+export const getCardToReview = async (time?: number) => {
+  const axios = await axiosInstancePromise;
+  return axios.get('/review/card/' + (time || (Date.now() + 24 * 60 * 60 * 1000))).then(res => res.data as FlashCard[]);
+};
+
+export const cardsByPage = async (pageSize: number, pageNumber: number) => {
+  const axios = await axiosInstancePromise;
+  return axios.get(`/card/${pageSize}/${pageNumber}`).then(res => res.data as FlashCard[]);
+};
+
+export const deleteCard = async (card: FlashCard) => {
+  const axios = await axiosInstancePromise;
+  return axios.delete(`/card/` + card.id);
+}
