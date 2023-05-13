@@ -12,6 +12,7 @@ export const LazyInput = ({
   displayValueTo,
   modalTitle,
   onWordClick,
+  onWordDoubleClick,
   menu,
   canEdit,
   showMenuOnClick,
@@ -24,6 +25,7 @@ export const LazyInput = ({
   displayValueTo?: (value: any) => any;
   onChange?: (value: any) => void;
   onWordClick?: (word: string) => void;
+  onWordDoubleClick?: (word: string, index: number) => void;
   modalTitle?: string;
   canEdit?: boolean;
   showMenuOnClick: boolean;
@@ -33,6 +35,7 @@ export const LazyInput = ({
 }) => {
   const inputRef = useRef<any>();
   const [editing, setEditing] = useState(false);
+  const [doubleClickTimer, setDoubleClickTimer] = useState<{index: number; timer: any;} | null>(null);
   const content = displayValueTo && displayValueTo(value);
   if (canEdit === undefined) {
     canEdit = true;
@@ -115,9 +118,24 @@ export const LazyInput = ({
               tabIndex={0}
               onKeyDown={() => {}}
               onClick={() => {
-                if (onWordClick) {
+                if (onWordClick && !onWordDoubleClick) {
                   onWordClick(word);
+                  return;
                 }
+                if (doubleClickTimer && doubleClickTimer.index === index) {
+                  clearTimeout(doubleClickTimer.timer);
+                  setDoubleClickTimer(null);
+                  onWordDoubleClick && onWordDoubleClick(word, index);
+                  return;
+                }
+                let timer = setTimeout(() => {
+                  onWordClick && onWordClick(word);
+                  setDoubleClickTimer(null);
+                }, 200);
+                setDoubleClickTimer({
+                  timer,
+                  index
+                })
               }}
               style={{ margin: '0 8px', cursor: 'pointer' }}
             >

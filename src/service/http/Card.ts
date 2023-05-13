@@ -23,7 +23,7 @@ export const saveCard = async (card: FlashCard) => {
 
 export const getCardToReview = async (time?: number) => {
   const axios = await axiosInstancePromise;
-  return axios.get('/review/card/' + (time || (Date.now() + 24 * 60 * 60 * 1000))).then(res => res.data as FlashCard[]);
+  return axios.get('/review/card/' + (time || (Date.now() + 2 * 60 * 60 * 1000))).then(res => res.data as FlashCard[]);
 };
 
 export const cardsByPage = async (pageSize: number, pageNumber: number) => {
