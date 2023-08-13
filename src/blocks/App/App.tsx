@@ -525,7 +525,7 @@ export const App = () => {
             }}
             style={{
               color: "rgb(100, 100, 100)",
-              fontSize: "20px",
+              fontSize: "15px",
               flexGrow: 1,
               height: '30px',
             }}

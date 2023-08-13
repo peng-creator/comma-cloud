@@ -336,14 +336,23 @@ const Component = ({ layoutMode }: { layoutMode: number }) => {
                   totalCount={searchResultList.length}
                   itemContent={(index) => {
                     const { id, match, score, terms } = searchResultList[index];
+                    console.log('card title of search:', id);
                     const item = () => {
                       return id.split(/\s/).map((word: string, wordIndex: number) => {
-                        if (terms.includes(word.replaceAll(/\W/g, "").toLowerCase())) {
-                          return (
-                            <span key={wordIndex} style={{ color: "rgb(226, 68, 68)" }}>
-                              {word}{" "}
-                            </span>
-                          );
+                        console.log("word in card title:", word);
+                        if (typeof word !== 'string') {
+                          return null;
+                        }
+                        try {
+                          if (terms.includes(word.replaceAll(/\W/g, "").toLowerCase())) {
+                            return (
+                              <span key={wordIndex} style={{ color: "rgb(226, 68, 68)" }}>
+                                {word}{" "}
+                              </span>
+                            );
+                          }
+                        } catch(e){
+
                         }
                         return <span key={wordIndex}>{word} </span>;
                       });
