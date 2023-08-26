@@ -1,0 +1,15 @@
+.seasonItem:focus {
+    background-color: rgba(255, 127, 240, 0.644);
+}
+.btn {
+    border: 1px solid #ccc;
+    padding: 3px 8px;
+    border-radius: 3px;
+}
+.btn:hover {
+    border: 1px solid rgba(255, 127, 240, 0.644);
+    color: rgba(255, 127, 240, 0.644);
+}
+.btn:focus {
+    background-color: rgba(255, 127, 240, 0.644);
+}

@@ -512,3 +512,14 @@ body {
 .pdf-container.pure-text-mode canvas{
   visibility: hidden;
 }
+
+
+[data-theme='compact'] .site-collapse-custom-collapse .site-collapse-custom-panel .ant-collapse-content-box,
+.site-collapse-custom-collapse .site-collapse-custom-panel .ant-collapse-content-box {
+  background-color: #000;
+  color: #ccc;
+}
+
+.site-collapse-custom-panel .ant-collapse-header:focus {
+  background-color: rgba(255, 127, 240, 0.644);
+}

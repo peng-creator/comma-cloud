@@ -15,6 +15,7 @@ import { complementary, hex2rgbObject } from 'lumino';
 import { useStore } from "../../store";
 import { saveRecord } from "../../service/http/Records";
 import { pdfNoteToBeAdded$ } from "../../state/cardMaker";
+import { fullscreen } from "../../utils/fullscreen";
 
 const MENU_ID = "MENU_ID";
 
@@ -596,6 +597,14 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
           }}
           trigger={['click']}
           overlay={<div className="pdfHeader" style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', background: '#000', color: '#ccc' }}>
+            <Button onClick={() => { 
+              let isFullscreen = document.fullscreenElement === containerRef.current;
+              if(isFullscreen) {
+                document.exitFullscreen();
+              } else {
+                fullscreen(containerRef.current);
+              }
+             }}>切换全屏</Button>
             <Button
               onClick={() => {
                 const container = containerRef.current;
@@ -644,6 +653,7 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
               <span>纯文本模式:</span> <Switch style={{ margin: '0 14px' }} checked={store.pureMode} checkedChildren="on" unCheckedChildren="off" title="纯文本模式" onChange={(checked) => store.pureMode = checked} />
             </div>
             {store.pureMode && <Button onClick={() => { setIsModalVisible(true) }}>颜色设置</Button>}
+
           </div>}>
           <a onClick={e => e.preventDefault()} style={{ color: store.pureMode ? store.color : '#000', fontSize: '25px' }}>
             <UnorderedListOutlined />

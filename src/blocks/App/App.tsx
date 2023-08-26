@@ -30,7 +30,7 @@ import "@blueprintjs/core/lib/css/blueprint.css";
 import "@blueprintjs/icons/lib/css/blueprint-icons.css";
 import { dropRight } from "lodash";
 import { Zone } from "../Zone/Zone";
-import { dragWindowEnd$, dragWindowStart$, isDraggingSplitBar$, toggleLayout$ } from "../../state/zone";
+import { addZone$, closeZone$, dragWindowEnd$, dragWindowStart$, isDraggingSplitBar$, toggleLayout$ } from "../../state/zone";
 import { AppstoreOutlined, SearchOutlined, ArrowsAltOutlined, ShrinkOutlined, DownOutlined, UpCircleOutlined, UpOutlined, SettingOutlined, FontSizeOutlined } from "@ant-design/icons";
 import { search$, searchSentence } from "../../state/search";
 import { TapCache } from "../../compontent/TapCache/TapCache";
@@ -50,6 +50,9 @@ import { PlayHow, SubtitlePlayStrategy } from "../../type/SubtitlePlayStrategy";
 import { FloatCardMaker } from "../FloatCardMaker/FloatCardMaker";
 import { FloatVideo } from "../FloatVideo/FloatVideo";
 import { FloatPDF } from "../FloatPDF/FloatPDF";
+import { Home } from "../Home/Home";
+import { share, shareReplay, throttleTime } from "rxjs";
+import { ZoneWrapper } from "../ZoneWrapper.tsx/ZoneWrapper";
 
 // iOS only
 window.addEventListener('statusTap', function () {
@@ -106,8 +109,6 @@ window.addEventListener('mouseup', ({ target }) => {
 
 export const App = () => {
   const [zones, setZones] = useState<ZoneDefinition[]>([]);
-  const [showAddZone, setShowAddZone] = useState(false);
-  const [showResourceLoader, setShowResourceLoader] = useState(false);
   const [defaultDir, setDefaultDir] = useState('/');
   const [contextMenuList] = useBehavior(contextMenu$, []);
 
@@ -131,7 +132,13 @@ export const App = () => {
           return;
         }
         setDefaultDir(dir);
-        setShowResourceLoader(true);
+        addZone({
+          title: '文件管理器',
+          type: 'resourceLoader',
+          data: {
+            defaultDir: dir,
+          }
+        });
       }
     });
   }, []);
@@ -145,10 +152,9 @@ export const App = () => {
     return () => sp.unsubscribe();
   }, []);
 
-  const saveWorkZones = (currentNode: MosaicNode<string> | null, zones: ZoneDefinition[]) => {
-    console.log('currentNode: ', currentNode);
-    let serializedWindowTree = '';
-    let serializedZones = '[]';
+  const saveCurrentNode = (currentNode: MosaicNode<string> | null) => {
+    console.log('debug zone error: currentNode: ', currentNode);
+    let serializedWindowTree = null;
     try {
       serializedWindowTree = JSON.stringify(currentNode);
     } catch (e) {
@@ -156,15 +162,28 @@ export const App = () => {
         serializedWindowTree = currentNode;
       }
     }
+    localStorage.setItem('serializedWindowTree', serializedWindowTree || 'null');
+  };
+
+  const saveZones = (zones: ZoneDefinition[]) => {
+    let serializedZones = '[]';
     try {
-      console.log('JSON.stringify(zones), zoens:', zones);
+      console.log('debug zone error: JSON.stringify(zones), zoens:', zones);
       serializedZones = JSON.stringify(zones);
     } catch (e) {
-      console.log('JSON.stringify(zones) failed:', e);
+      console.log('debug zone error: JSON.stringify(zones) failed:', e);
     }
-    localStorage.setItem('serializedWindowTree', serializedWindowTree);
     localStorage.setItem('serializedZones', serializedZones);
   };
+
+  const saveWorkZones = (currentNode: MosaicNode<string> | null, zones: ZoneDefinition[]) => {
+    saveCurrentNode(currentNode);
+    saveZones(zones);
+  };
+
+  useEffect(() => {
+    saveWorkZones(currentNode, zones);
+  }, [currentNode, zones]);
 
   useEffect(() => {
     const sp = search$.subscribe({
@@ -220,13 +239,32 @@ export const App = () => {
       }
     ];
     setZones(nextZones);
-    const nextNode = addWindow(id);
-    saveWorkZones(nextNode, nextZones);
+    addWindow(id);
   }, [zones, addWindow]);
+
+  useEffect(() => {
+    const sp = addZone$.subscribe({
+      next(zone) {
+        addZone(zone);
+      }
+    });
+    return () => sp.unsubscribe();
+  }, [addZone]);
 
   const removeZone = useCallback((zone: ZoneDefinition) => {
     setZones(zones.filter(z => z.id !== zone.id));
     closeZone(zone.id);
+  }, [zones]);
+
+  useEffect(() => {
+    const sp = closeZone$.subscribe({
+      next(zoneId) {
+        setZones(zones.filter(z => z.id !== zoneId));
+        // closeZone(zoneId);
+        // (document.querySelector(`.zone-${zoneId}-CloseBtn button`) as HTMLButtonElement | null)?.click();
+      },
+    });
+    return () => sp.unsubscribe();
   }, [zones]);
 
   useEffect(() => {
@@ -303,28 +341,19 @@ export const App = () => {
       let serializedZones = localStorage.getItem('serializedZones') || '';
       console.log('serializedWindowTree:', serializedWindowTree);
       console.log('serializedZones:', serializedZones);
-      let zones: ZoneDefinition[] = [{
-        "title": "词典",
-        "type": "dict",
-        "multiLayout": false,
-        "data": {
-          "name": "有道",
-          "template": "https://mobile.youdao.com/dict?le=eng&q={}"
-        },
-        "id": "7ad47632-83f7-428a-98b4-51e402fab185"
-      }];
+      let zones: ZoneDefinition[] = [];
       let currentNode = null;
       try {
         currentNode = JSON.parse(serializedWindowTree);
       } catch (e) {
-        currentNode = '7ad47632-83f7-428a-98b4-51e402fab185';
+        currentNode = null;
       }
       try {
         zones = JSON.parse(serializedZones);
       } catch (e) {
       }
-      console.log('zones:', zones);
-      console.log('currentNode:', currentNode);
+      console.log('debug zone error: zones:', zones);
+      console.log('debug zone error: currentNode:', currentNode);
       setZones(zones);
       setCurrentNode(currentNode);
     };
@@ -370,37 +399,6 @@ export const App = () => {
       <FloatCardMaker></FloatCardMaker>
       <FloatVideo></FloatVideo>
       <FloatPDF></FloatPDF>
-      {showResourceLoader && <ResourceLoader
-        visible={showResourceLoader}
-        defaultDir={defaultDir}
-        onClose={() => {
-          setShowResourceLoader(false);
-        }}
-        onOpenPDF={(filePath) => {
-          console.log("onOpenPDF:", filePath);
-          const arr = filePath.split("/");
-          addZone({
-            title: arr[arr.length - 1],
-            type: "pdf",
-            data: {
-              filePath,
-            },
-          },);
-          setShowResourceLoader(false);
-        }}
-        onOpenVideo={(filePath) => {
-          console.log("onOpenVideo:", filePath);
-          const arr = filePath.split("/");
-          addZone({
-            title: arr[arr.length - 1],
-            type: "video",
-            data: {
-              filePath,
-            },
-          },);
-          setShowResourceLoader(false);
-        }}
-      ></ResourceLoader>}
       <ContextMenu
         id="MENU_ID"
         animation={false}
@@ -426,297 +424,191 @@ export const App = () => {
           );
         })}
       </ContextMenu>
-
-      <div style={{ height: '100%' }}>
-        <MosaicNumber
-          blueprintNamespace="bp4"
-          className={THEMES['Blueprint Dark']}
-          zeroStateView={<div>没有打开的窗口</div>}
-          resize={{
-            minimumPaneSizePercentage: 0
-          }}
-          renderTile={(id: string, path: any) => {
-            console.log('renderTile, path:', path);
-            console.log('renderTile, id:', id);
-            const zone = zones.find(zone => zone.id === id);
-            if (!zone) {
-              return null;
-            }
-            return (<MosaicWindowNumber
-              className={fullScreenZoneId === zone.id ? 'fullScreenZone' : ''}
-              onDragStart={() => {
-                dragWindowStart$.next(true);
-              }}
-              onDragEnd={() => {
-                dragWindowEnd$.next(true);
-              }}
-              toolbarControls={React.Children.toArray([
-                zone.multiLayout === false ? null : <Button type="text" onClick={() => {
-                  toggleLayout$.next(id);
-                }}>
-                  <Icon style={{ position: 'relative', top: '-1px' }} icon="control" size={18} color="#5f6b7c" /></Button>,
-                <Button type="text" style={{ marginRight: '12px' }} onClick={() => {
-                  if (fullScreenZoneId) {
-                    setFullScreenZoneId('');
-                  } else {
-                    setFullScreenZoneId(zone.id);
-                    setShowBottomBar(false);
-                  }
-                }}>
-                  <Icon style={{ position: 'relative', top: '-1px' }} icon={zone.id === fullScreenZoneId ? "minimize" : "maximize"} size={18} color="#5f6b7c" />
-                </Button>,
-                <div style={{ transform: 'scale(1.4)', position: 'relative', left: '-2px' }}>
-                  <RemoveButton onClick={() => {
-                    setFullScreenZoneId('');
-                    removeZone(zone);
-                  }} />
-                </div>,
-              ])}
-              title={zone.title || '没有标题'}
-              // createNode={() => {
-              //   return ++windowCount;
-              // }}
-              path={path}
-            >
-              <Zone difinition={zone}></Zone>
-            </MosaicWindowNumber>
-            )
-          }}
-          value={currentNode}
-          onChange={(node: MosaicNode<string> | null) => {
-            setCurrentNode(node);
-            saveWorkZones(node, zones);
-          }}
-        />
+      <div style={{ height: 'calc(100% - 40px)' }}>
+        <Home></Home>
       </div>
       <div style={{
-        width: 'calc(100% - 28px)',
+        width: 'calc(100% - 14px)',
         background: '#000',
-        display: showBottomBar ? 'flex' : 'none',
+        display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        position: 'absolute',
-        minWidth: '320px',
-        padding: '14px 0 5px',
-        bottom: 0,
-        zIndex: 6,
+        minWidth: '220px',
         borderRadius: '12px 12px 0 0',
-        margin: '0 14px',
+        margin: '0 7px',
+        borderTop: '0.5px solid #ddd',
+        overflowX: 'auto'
       }}>
-        <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', }}>
-          <Button
-            type="text"
+        {
+          showPreferenceModal && <Modal
+            width="95%"
             style={{
-              color: '#ccc'
+              height: '50%',
+              top: '50%',
+              transform: 'translate(0, -50%)',
+              minHeight: '550px',
             }}
-            onClick={() => {
-              setShowBottomBar(false);
-            }}
-          >
-            <DownOutlined />
-          </Button>
-          <Input
-            prefix={<SearchOutlined />}
-            ref={searchBoxRef}
-            type="text"
-            value={inputSearchValue}
-            onChange={(e) => {
-              setInputSearchValue(e.target.value);
-            }}
-            style={{
-              color: "rgb(100, 100, 100)",
-              fontSize: "15px",
-              flexGrow: 1,
-              height: '30px',
-            }}
-            onKeyDown={(e) => {
-              const key = e.key.toLowerCase();
-              if (key === "enter".toLowerCase()) {
-                searchSentence(inputSearchValue);
-              }
-            }}
-            placeholder="搜索单词、句子"
-          />
-          <Button
-            type="text"
-            style={{
-              color: '#ccc'
-            }}
-            onClick={() => {
-              setShowPreferenceModal(true);
-            }}
-          >
-            <SettingOutlined></SettingOutlined>
-          </Button>
-          {
-            showPreferenceModal && <Modal
-              width="95%"
-              style={{
-                height: '50%',
-                top: '50%',
-                transform: 'translate(0, -50%)',
-                minHeight: '550px',
-              }}
-              footer={null}
-              closable={false}
-              visible={showPreferenceModal}
-              onCancel={() => { setShowPreferenceModal(false) }}
-              onOk={() => { setShowPreferenceModal(false) }}
-              modalRender={() => {
-                return <div style={{
-                  background: '#000',
-                  height: '100%',
-                  width: '100%',
-                  borderRadius: '14px',
-                  pointerEvents: 'auto',
-                  overflow: 'hidden',
-                  color: '#ccc',
-                }}>
-                  <div style={{ paddingLeft: '20px', marginTop: '14px', fontSize: '20px' }}>偏好设置</div>
-                  <div style={{ height: '1px', borderBottom: '1px solid #ddd', marginTop: '14px' }}></div>
-                  <div style={{ height: 'calc(100% - 60px)', padding: '14px', overflowY: 'auto', }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 14px', borderBottom: '.5px solid #ddd', }}>
-                      <div>弹窗词典 (点击单词后，自动弹出词典)</div>
-                      <div>
-                        <Switch checked={userPreference.floatDict} onChange={(checked) => {
-                          setUserPreference({ ...userPreference, floatDict: checked });
-                        }}></Switch>
-                      </div>
+            footer={null}
+            closable={false}
+            visible={showPreferenceModal}
+            onCancel={() => { setShowPreferenceModal(false) }}
+            onOk={() => { setShowPreferenceModal(false) }}
+            modalRender={() => {
+              return <div style={{
+                background: '#000',
+                height: '100%',
+                width: '100%',
+                borderRadius: '14px',
+                pointerEvents: 'auto',
+                overflow: 'hidden',
+                color: '#ccc',
+              }}>
+                <div style={{ paddingLeft: '20px', marginTop: '14px', fontSize: '20px' }}>偏好设置</div>
+                <div style={{ height: '1px', borderBottom: '1px solid #ddd', marginTop: '14px' }}></div>
+                <div style={{ height: 'calc(100% - 60px)', padding: '14px', overflowY: 'auto', }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 14px', borderBottom: '.5px solid #ddd', }}>
+                    <div>观影模式 (打开视频自动全屏)</div>
+                    <div>
+                      <Switch checked={userPreference.tvMode} onChange={(checked) => {
+                        setUserPreference({ ...userPreference, tvMode: checked });
+                      }}></Switch>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 14px', borderBottom: '.5px solid #ddd', }}>
-                      <div>字幕字号：</div>
-                      <div>
-                        <Button
-                          type="text"
-                          style={{ color: "#ccc" }}
-                          onClick={() => {
-                            setUserPreference({ ...userPreference, subtitleFontSize: userPreference.subtitleFontSize - 1 });
-                          }}
-                        >
-                          <FontSizeOutlined /> -
-                        </Button>
-                        <span style={{ fontSize: userPreference.subtitleFontSize + 'px' }}>{userPreference.subtitleFontSize}px</span>
-                        <Button
-                          type="text"
-                          style={{ color: "#ccc" }}
-                          onClick={() => {
-                            setUserPreference({ ...userPreference, subtitleFontSize: userPreference.subtitleFontSize + 1 });
-                          }}
-                        >
-                          <FontSizeOutlined /> +
-                        </Button>
-                      </div>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 14px', borderBottom: '.5px solid #ddd', }}>
+                    <div>观影模式下隐藏字幕</div>
+                    <div>
+                      <Switch checked={userPreference.hideSubtitlesInTvMode} onChange={(checked) => {
+                        setUserPreference({ ...userPreference, hideSubtitlesInTvMode: checked });
+                      }}></Switch>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 14px', borderBottom: '.5px solid #ddd', }}>
-                      <div>精听设置</div>
-                      <div style={{display: 'flex', flexDirection: 'column', alignItems: 'end'}}>
-                        <div>
-                          <Button onClick={() => {
-                            const nextIntensiveStrategy = [...userPreference.intensiveStrategy, new PlayHow(1, true)];
-                            setUserPreference({ ...userPreference, intensiveStrategy: nextIntensiveStrategy });
-                          }}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 14px', borderBottom: '.5px solid #ddd', }}>
+                    <div>弹窗词典 (点击单词后，自动弹出词典)</div>
+                    <div>
+                      <Switch checked={userPreference.floatDict} onChange={(checked) => {
+                        setUserPreference({ ...userPreference, floatDict: checked });
+                      }}></Switch>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 14px', borderBottom: '.5px solid #ddd', }}>
+                    <div>字幕字号：</div>
+                    <div>
+                      <Button
+                        type="text"
+                        style={{ color: "#ccc" }}
+                        onClick={() => {
+                          setUserPreference({ ...userPreference, subtitleFontSize: userPreference.subtitleFontSize - 1 });
+                        }}
+                      >
+                        <FontSizeOutlined /> -
+                      </Button>
+                      <span style={{ fontSize: userPreference.subtitleFontSize + 'px' }}>{userPreference.subtitleFontSize}px</span>
+                      <Button
+                        type="text"
+                        style={{ color: "#ccc" }}
+                        onClick={() => {
+                          setUserPreference({ ...userPreference, subtitleFontSize: userPreference.subtitleFontSize + 1 });
+                        }}
+                      >
+                        <FontSizeOutlined /> +
+                      </Button>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 14px', borderBottom: '.5px solid #ddd', }}>
+                    <div>精听设置</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'end' }}>
+                      <div>
+                        <Button onClick={() => {
+                          const nextIntensiveStrategy = [...userPreference.intensiveStrategy, new PlayHow(1, true)];
+                          setUserPreference({ ...userPreference, intensiveStrategy: nextIntensiveStrategy });
+                        }}
                           type="ghost"
-                          style={{color: '#ccc'}}
-                          >增加精听次数</Button>
-                        </div>
-                        <div style={{ margin: '14px 0' }}>
-                          {editStrategy !== null && editStrategyIndex !== undefined && <Modal 
-                                      visible={editStrategy !== null} 
-                                      footer={null}
-                                      closable={false}
-                                      onCancel={() => { setEditStrategy(null); setEditStrategyIndex(undefined); }}
-                                      onOk={() => { setEditStrategy(null); setEditStrategyIndex(undefined); }}
-                          >
-                              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                <div>显示字幕： <Switch checked={editStrategy.showSubtitle} onChange={(checked) => {
-                                    const newPlayHow = new PlayHow(editStrategy.speed, checked);
-                                    const nextIntensiveStrategy = [...userPreference.intensiveStrategy.slice(0, editStrategyIndex), 
-                                      newPlayHow,
-                                      ...userPreference.intensiveStrategy.slice(editStrategyIndex + 1)];
-                                    setUserPreference({ ...userPreference, intensiveStrategy: nextIntensiveStrategy });
-                                    setEditStrategy(newPlayHow);
-                                }}></Switch>{editStrategy.showSubtitle ? '开启' : '关闭'}
-                                </div>
-                                <div>倍速播放：<Radio.Group
-                                onChange={(event) => {
-                                    const newPlayHow = new PlayHow(event.target.value, editStrategy.showSubtitle)
-                                    const nextIntensiveStrategy = [...userPreference.intensiveStrategy.slice(0, editStrategyIndex), 
-                                      newPlayHow,
-                                      ...userPreference.intensiveStrategy.slice(editStrategyIndex + 1)];
-                                    setUserPreference({ ...userPreference, intensiveStrategy: nextIntensiveStrategy });
-                                    setEditStrategy(newPlayHow);
-                                }} value={editStrategy.speed}>
-                                    <Radio value={0.5}>0.5</Radio>
-                                    <Radio value={0.75}>0.75</Radio>
-                                    <Radio value={1}>1</Radio>
-                                    <Radio value={1.25}>1.25</Radio>
-                                    <Radio value={1.5}>1.5</Radio>
-                                    <Radio value={1.75}>1.75</Radio>
-                                    <Radio value={2}>2</Radio>
-                                  </Radio.Group> </div> 
-
-                                </div>
-                          </Modal>}
-                          {userPreference.intensiveStrategy.map((playHow, index) => {
-                            return <div style={{ display: 'flex', alignItems: 'center', borderBottom: '0.5px solid #ccc', marginBottom: '12px' }}>
-                              <div style={{ marginRight: '14px', paddingRight: '14px' }}>第{index + 1}遍</div> <div style={{ marginRight: '14px', paddingRight: '14px' }}>{playHow.showSubtitle ? '显示' : '隐藏'}字幕 ， {playHow.speed} 倍速播放</div>
-                              <Button type="ghost" style={{color: '#ccc'}} onClick={() => {
-                                setEditStrategyIndex(index);
-                                setEditStrategy(playHow);
-                              }}>修改</Button>
-                              <Button
-                                  onClick={() => {
-                                    const nextIntensiveStrategy = [...userPreference.intensiveStrategy.slice(0, index), 
-                                      ...userPreference.intensiveStrategy.slice(index + 1)];
-                                    setUserPreference({ ...userPreference, intensiveStrategy: nextIntensiveStrategy });
-                                  }}
-                                  type="ghost" style={{ color: '#ccc' }}>删除</Button>
-                            </div>
-                          })}
-                        </div>
+                          style={{ color: '#ccc' }}
+                        >增加精听次数</Button>
                       </div>
+                      <div style={{ margin: '14px 0' }}>
+                        {editStrategy !== null && editStrategyIndex !== undefined && <Modal
+                          visible={editStrategy !== null}
+                          footer={null}
+                          closable={false}
+                          onCancel={() => { setEditStrategy(null); setEditStrategyIndex(undefined); }}
+                          onOk={() => { setEditStrategy(null); setEditStrategyIndex(undefined); }}
+                        >
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <div>显示字幕： <Switch checked={editStrategy.showSubtitle} onChange={(checked) => {
+                              const newPlayHow = new PlayHow(editStrategy.speed, checked);
+                              const nextIntensiveStrategy = [...userPreference.intensiveStrategy.slice(0, editStrategyIndex),
+                                newPlayHow,
+                              ...userPreference.intensiveStrategy.slice(editStrategyIndex + 1)];
+                              setUserPreference({ ...userPreference, intensiveStrategy: nextIntensiveStrategy });
+                              setEditStrategy(newPlayHow);
+                            }}></Switch>{editStrategy.showSubtitle ? '开启' : '关闭'}
+                            </div>
+                            <div>倍速播放：<Radio.Group
+                              onChange={(event) => {
+                                const newPlayHow = new PlayHow(event.target.value, editStrategy.showSubtitle)
+                                const nextIntensiveStrategy = [...userPreference.intensiveStrategy.slice(0, editStrategyIndex),
+                                  newPlayHow,
+                                ...userPreference.intensiveStrategy.slice(editStrategyIndex + 1)];
+                                setUserPreference({ ...userPreference, intensiveStrategy: nextIntensiveStrategy });
+                                setEditStrategy(newPlayHow);
+                              }} value={editStrategy.speed}>
+                              <Radio value={0.5}>0.5</Radio>
+                              <Radio value={0.75}>0.75</Radio>
+                              <Radio value={1}>1</Radio>
+                              <Radio value={1.25}>1.25</Radio>
+                              <Radio value={1.5}>1.5</Radio>
+                              <Radio value={1.75}>1.75</Radio>
+                              <Radio value={2}>2</Radio>
+                            </Radio.Group> </div>
 
+                          </div>
+                        </Modal>}
+                        {userPreference.intensiveStrategy.map((playHow, index) => {
+                          return <div style={{ display: 'flex', alignItems: 'center', borderBottom: '0.5px solid #ccc', marginBottom: '12px' }}>
+                            <div style={{ marginRight: '14px', paddingRight: '14px' }}>第{index + 1}遍</div> <div style={{ marginRight: '14px', paddingRight: '14px' }}>{playHow.showSubtitle ? '显示' : '隐藏'}字幕 ， {playHow.speed} 倍速播放</div>
+                            <Button type="ghost" style={{ color: '#ccc' }} onClick={() => {
+                              setEditStrategyIndex(index);
+                              setEditStrategy(playHow);
+                            }}>修改</Button>
+                            <Button
+                              onClick={() => {
+                                const nextIntensiveStrategy = [...userPreference.intensiveStrategy.slice(0, index),
+                                ...userPreference.intensiveStrategy.slice(index + 1)];
+                                setUserPreference({ ...userPreference, intensiveStrategy: nextIntensiveStrategy });
+                              }}
+                              type="ghost" style={{ color: '#ccc' }}>删除</Button>
+                          </div>
+                        })}
+                      </div>
                     </div>
 
                   </div>
+
                 </div>
-              }}
-            />
-          }
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', maxWidth: '720px', marginTop: '40px', marginBottom: '10px' }}>
-          <div style={{ width: '0.5%' }}></div>
+              </div>
+            }}
+          />
+        }
+        <div style={{ display: 'flex', minWidth: '400px'}}>
           <Button
-            type='ghost'
-            style={{ color: '#ccc', width: '33%', height: '40px' }}
+            type='text'
+            style={{ color: '#ccc', height: '40px' }}
             onClick={() => {
-              setShowResourceLoader(true);
-              setShowAddZone(false);
+              addZone({
+                title: '文件管理',
+                type: 'resourceLoader',
+                data: {
+                  defaultDir
+                },
+              })
             }}
           >
             文件
           </Button>
           <Button
-            type='ghost'
-            style={{ color: '#ccc', width: '33%', height: '40px' }}
-            onClick={() => {
-              addZone({
-                title: "词典",
-                type: "dict",
-                multiLayout: false,
-                data: {
-                  name: "有道",
-                  template: "https://mobile.youdao.com/dict?le=eng&q={}",
-                },
-              },);
-              setShowAddZone(false);
-            }}
-          >
-            词典
-          </Button>
-          <Button
-            type='ghost'
-            style={{ color: '#ccc', width: '33%', height: '40px' }}
+            type='text'
+            style={{ color: '#ccc', height: '40px' }}
             onClick={() => {
               addZone({
                 title: "卡片",
@@ -724,16 +616,13 @@ export const App = () => {
                 data: {
                 },
               },);
-              setShowAddZone(false);
             }}
           >
             卡片
           </Button>
-          <div style={{ width: '0.5%' }}></div>
-          <div style={{ width: '0.5%' }}></div>
           <Button
-            type='ghost'
-            style={{ color: '#ccc', width: '33%', height: '40px' }}
+            type='text'
+            style={{ color: '#ccc', height: '40px' }}
             onClick={() => {
               addZone({
                 title: "SuperMemo",
@@ -741,14 +630,13 @@ export const App = () => {
                 data: {
                 },
               },);
-              setShowAddZone(false);
             }}
           >
             SuperMemo
           </Button>
           <Button
-            type='ghost'
-            style={{ color: '#ccc', width: '33%', height: '40px' }}
+            type='text'
+            style={{ color: '#ccc', height: '40px' }}
             onClick={() => {
               addZone({
                 title: "遥控器",
@@ -758,14 +646,13 @@ export const App = () => {
                   // template: "http://mobile.youdao.com/dict?le=eng&q={}",
                 },
               },);
-              setShowAddZone(false);
             }}
           >
             遥控器
           </Button>
           <Button
-            type="ghost"
-            style={{ color: '#ccc', width: '33%', height: '40px' }}
+            type="text"
+            style={{ color: '#ccc', height: '40px' }}
             onClick={() => {
               const hide = message.loading('加载记录中...', 0);
               getRecords().then((records) => {
@@ -775,6 +662,15 @@ export const App = () => {
                 hide();
               });
             }}>浏览记录</Button>
+          <Button
+            type='text'
+            style={{ color: '#ccc', height: '40px' }}
+            onClick={() => {
+              setShowPreferenceModal(true);
+            }}
+          >
+            设置
+          </Button>
         </div>
         {
           showRecordModal && <Modal
@@ -813,24 +709,9 @@ export const App = () => {
           </Modal>
         }
       </div>
-      {!showBottomBar && <Button
-        type="text"
-        onClick={() => {
-          setShowBottomBar(true);
-          if (fullScreenZoneId) {
-            setShowBottomBar(false);
-            setFullScreenZoneId('');
-          }
-        }}
-        style={{
-          position: 'absolute', bottom: '14px', left: '14px', zIndex: 6, color: '#ccc', background: '#000', width: '40px', height: '40px',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          borderRadius: '50%',
-        }}>
-        {fullScreenZoneId ? <Icon style={{ position: 'relative', top: '-1px' }} icon={"minimize"} size={18} color="#ccc" /> : <UpOutlined style={{ position: 'relative', top: '2px' }} />}
-      </Button>}
+      {zones.map(zone => {
+        return <ZoneWrapper difinition={zone} key={zone.id} onClose={() => { removeZone(zone); }}></ZoneWrapper>
+      })}
     </div>
   );
 };

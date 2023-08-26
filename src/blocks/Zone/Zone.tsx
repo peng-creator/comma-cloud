@@ -11,6 +11,7 @@ import { RemoteController } from '../RemoteController/RemoteController';
 import { StandaloneSubtitle } from '../StandaloneSubtitle/StandaloneSubtitle';
 import { CardReviewer } from '../CardReviewer/CardReviewer';
 import { message } from 'antd';
+import { ResourceLoader } from '../ResourceLoader/ResourceLoader';
 
 const ZoneMapping: { [key in ZoneType]: (...args: any[]) => JSX.Element | null} = {
   dict: Dict,
@@ -20,6 +21,7 @@ const ZoneMapping: { [key in ZoneType]: (...args: any[]) => JSX.Element | null} 
   subtitle: StandaloneSubtitle,
   remoteController: RemoteController,
   cardReviewer: CardReviewer,
+  resourceLoader: ResourceLoader,
 };
 
 export const Zone = ({difinition} : {difinition: ZoneDefinition}) => {

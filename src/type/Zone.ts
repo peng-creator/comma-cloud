@@ -1,4 +1,4 @@
-export type ZoneType = 'dict' | 'pdf' | 'video' | 'cardMaker' | 'cardReviewer' | 'subtitle' | 'remoteController';
+export type ZoneType = 'dict' | 'pdf' | 'video' | 'cardMaker' | 'cardReviewer' | 'subtitle' | 'remoteController' | 'resourceLoader';
 
 export type ZoneDefinition = {
   id: string;

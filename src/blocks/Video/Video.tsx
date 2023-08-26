@@ -17,12 +17,15 @@ import { BehaviorSubject } from "rxjs";
 import { SubtitleComponent } from "../Subtitle/Subtitle";
 import { remoteControlInput$, remoteControlOutput$ } from "../../state/remoteContol";
 import { saveRecord } from "../../service/http/Records";
-import { playSubtitleRecord$ } from "../../state/video";
-import { defaultIntensiveStrategy, SubtitlePlayStrategy } from "../../type/SubtitlePlayStrategy";
+import { playSubtitle$, playSubtitleRecord$ } from "../../state/video";
+import styles from './Video.module.css';
 import { useStore } from "../../store";
 import { message } from "antd";
 import { useBehavior } from "../../state";
 import { userPreference$, UserPreference } from "../../state/preference";
+import { closeZone$ } from "../../state/zone";
+import { getPlaylistByPlayingVideo } from "../../state/playlist";
+import { fullscreen } from "../../utils/fullscreen";
 
 type VideoState = {
   subtitles: Subtitle[];
@@ -40,6 +43,10 @@ type VideoState = {
   playbackRate: number;
   intensiveTimer: any;
   intensiveSwithing: boolean;
+  inTVModeFullScreen: boolean;
+  showProgress: boolean;
+  showProgressTimer: any;
+  progress: number;
 };
 
 export const Video = ({
@@ -74,6 +81,10 @@ export const Video = ({
     playbackRate: 1,
     intensiveTimer: null,
     intensiveSwithing: false,
+    inTVModeFullScreen: false,
+    showProgress: false,
+    progress: 0,
+    showProgressTimer: -1,
   });
 
   const ref = useRef<ReactPlayer | null>(null);
@@ -94,6 +105,28 @@ export const Video = ({
       store.intensive = false;
     }
   };
+
+  useEffect(() => {
+    if (userPreference.tvMode && wrapperRef.current) {
+      setTimeout(() => {
+        const ele: any = wrapperRef.current!;
+        fullscreen(ele).then(() => {
+          store.inTVModeFullScreen = true;
+          store.player?.getInternalPlayer().play().catch((e: any) => message.error(e.toString()));
+          wrapperRef.current!.focus();
+          wrapperRef.current!.onfullscreenchange = (event: any) => {
+            console.log('onfullscreenchange:', event);
+            let elem = event.target;
+            let isFullscreen = document.fullscreenElement === elem;
+            if (!isFullscreen) {
+              closeZone$.next(zoneId);
+            }
+            store.inTVModeFullScreen = isFullscreen;
+          }
+        }).catch((e: any) => message.error(e.toString()));
+      }, 100);
+    }
+  }, [userPreference.tvMode, wrapperRef]);
 
   const setScrollToIndex = useCallback((index: number, needToSeek = true) => {
     store.intensiveSubtitle = null;
@@ -354,47 +387,50 @@ export const Video = ({
   }, [store.playing, ref, store.loopingSubtitle]);
 
   useEffect(() => {
-    console.log("effect executed");
+    console.log("debug-002 effect executed");
     const player = ref.current;
     if (player === null) {
       return;
     }
     if (store.loopingSubtitle) {
-      console.log("loopingSubtitle === true");
+      console.log("debug-002 loopingSubtitle === true");
       return;
     }
     if (store.intensive) {
       return;
     }
-    console.log("playing:", store.playing);
-    console.log("playing && autoPlayBySubtitle === true");
+    console.log("debug-002 playing:", store.playing);
+    console.log("debug-002 playing && autoPlayBySubtitle === true");
     store.playbackRate = 1;
     let timer = setInterval(() => {
       if (!store.playing) {
-        console.log("playing === false");
+        console.log("debug-002 playing === false");
         return;
       }
       const currentSubtitle: Subtitle = store.subtitles[store.scrollToIndex];
       const currentTime = player.getCurrentTime() * 1000;
       const isPlayCurrentSubtitle = currentSubtitle && currentSubtitle.start <= currentTime && currentSubtitle.end > currentTime;
       if (isPlayCurrentSubtitle) {
+        console.log("debug-002 isPlayCurrentSubtitle");
         return;
       }
       const subtileFound = store.subtitles.find(
         (s: Subtitle) => s.start <= currentTime && s.end > currentTime
       );
       if (subtileFound) {
-        console.log("subtileFound:", subtileFound);
+        console.log("debug-002 subtileFound:", subtileFound);
         const nextIndex = store.subtitles.findIndex((s: Subtitle) => s === subtileFound);
-        if (store.scrollToIndex < store.subtitles.length -1 && store.scrollToIndex > nextIndex) {
-          return;
-        }
+        // if (store.scrollToIndex < store.subtitles.length -1 && store.scrollToIndex > nextIndex) {
+        //   return;
+        // }
         store.scrollToIndex = nextIndex;
-        console.log('debug setScrollToIndex: ', store.scrollToIndex);
+        console.log('debug-002  setScrollToIndex: ', store.scrollToIndex);
         if (store.intensiveSubtitle !== subtileFound) {
           store.intensiveSubtitle = currentSubtitle;
           store.intensiveStrategyIndex = 0;
         }
+      } else {
+        console.log('debug-002  no subtileFound');
       }
     }, 50);
     return () => {
@@ -491,8 +527,12 @@ export const Video = ({
 
   console.log('render video, player:', store.player);
 
+  const [playlistPromise] = useState(getPlaylistByPlayingVideo(filePath));
+
+
   return (
     <div
+      className={styles.VideoWrapper}
       style={{
         ...style,
         display: "flex",
@@ -500,8 +540,95 @@ export const Video = ({
         alignItems: "center",
         justifyContent: layoutMode === 0 ? 'flex-start' : 'space-between',
         overflow: 'hidden',
+        position: 'relative',
+        cursor: store.inTVModeFullScreen ? 'none' : 'auto',
       }}
       ref={wrapperRef}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        const key = e.key.toLowerCase();
+        console.log('wrapper key down:', key);
+        if (key === " ".toLowerCase() && store.inTVModeFullScreen) {
+          store.playing ? store.player?.getInternalPlayer().pause() : store.player?.getInternalPlayer().play();
+        }
+        if (key === "mediatrackprevious".toLowerCase()) {
+          closeZone$.next(zoneId);
+          playlistPromise.then(playlist => {
+            console.log('mediatrackprevious..');
+            const index = playlist.findIndex((file) => filePath === file);
+            let prevIndex = index - 1;
+            if (prevIndex === -1) {
+              prevIndex = playlist.length - 1;
+            }
+            setTimeout(() => {
+              playSubtitle$.next({
+                file: playlist[prevIndex],
+                start: 0,
+                end: 0,
+                subtitles: []
+              });
+            }, 100);
+          });
+        }
+        if (key === "mediatracknext".toLowerCase()) {
+          closeZone$.next(zoneId);
+          playlistPromise.then(playlist => {
+            console.log('mediatracknext..');
+            const index = playlist.findIndex((file) => filePath === file);
+            let nextIndex = index + 1;
+            if (nextIndex === playlist.length) {
+              nextIndex = 0;
+            }
+            setTimeout(() => {
+              playSubtitle$.next({
+                file: playlist[nextIndex],
+                start: 0,
+                end: 0,
+                subtitles: []
+              });
+            }, 100);
+          });
+        }
+        
+        const currentTime = (store.player?.getCurrentTime() || 0);
+        if (key === "arrowright".toLowerCase()) {
+          store.progress = (currentTime + 9.5) / (store.player?.getDuration() || 1);
+
+          seekTo(currentTime + 9.5, "seconds");
+        }
+        if (key === "arrowleft".toLowerCase()) {
+          store.progress = (currentTime - 9.5) / (store.player?.getDuration() || 1);
+          seekTo(currentTime - 9.5, "seconds");
+        }
+        store.progress > 1 && (store.progress = 1);
+        store.progress < 0 && (store.progress = 0);
+        if (key === "arrowleft".toLowerCase() || key === "arrowright".toLowerCase()) {
+          store.showProgress = true;
+          if (store.showProgressTimer !== -1) {
+            clearTimeout(store.showProgressTimer);
+          }
+          store.showProgressTimer = setTimeout(() => {
+            store.showProgress = false;
+          }, 2000);
+        }
+
+      }}
+      onContextMenu={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        return false;
+      }}
+      onMouseUp={(e) => {
+        if(e.button == 2 && store.inTVModeFullScreen) {
+          requestAnimationFrame(() => closeZone$.next(zoneId));
+        }
+      }}
+      onClick={() => {
+        if (!store.inTVModeFullScreen) {
+          return;
+        }
+        store.playing ? store.player?.getInternalPlayer().pause() : store.player?.getInternalPlayer().play();
+      }}
     >
       <Resizable
         maxWidth={layoutMode === 0 ? '100%' : '70%'}
@@ -524,7 +651,7 @@ export const Video = ({
           },
         }}
         handleComponent={{
-          left: (
+          left: store.inTVModeFullScreen ? undefined : (
             <div
               style={{
                 width: "25px",
@@ -546,7 +673,7 @@ export const Video = ({
               ></div>
             </div>
           ),
-          right: (
+          right: store.inTVModeFullScreen ? undefined : (
             <div
               style={{
                 width: "25px",
@@ -558,7 +685,6 @@ export const Video = ({
                 alignItems: "center",
               }}
             >
-              {" "}
               <div
                 style={{
                   width: "15px",
@@ -566,7 +692,7 @@ export const Video = ({
                   borderRadius: "50%",
                   background: "#ccc",
                 }}
-              ></div>{" "}
+              ></div>
             </div>
           ),
         }}
@@ -612,7 +738,7 @@ export const Video = ({
             onPlay={() => store.playing  = true}
             playsinline
             loop
-            controls
+            controls={!store.inTVModeFullScreen}
             onError={(err, data) => {
               console.log("video error:", err);
               console.log("video error data:", data);
@@ -620,15 +746,26 @@ export const Video = ({
           />
         </div>
       </Resizable>
+      {store.showProgress && <div style={{fontSize: '60px', position: 'fixed', right: '14px', top: '14px', color: '#fff'}}>
+        {(store.progress * 100).toFixed(2)} %
+      </div>}
       <div style={{
-        width: '100%',
-        minWidth: '200px',
-        flexGrow: 1,
-        height: '100%',
         display: 'flex',
+        ...(store.inTVModeFullScreen ? {
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          width: '100%',
+        } : {
+          width: '100%',
+          minWidth: '200px',
+          flexGrow: 1,
+          height: '100%',
+        })
       }}>
         {store.player !== null && (
           <SubtitleComponent
+            inTVModeFullScreen={store.inTVModeFullScreen}
             layoutMode={0}
             fromZoneId={zoneId}
             title={title}

@@ -35,6 +35,7 @@ import { getPlaylistByPlayingVideo } from "../../state/playlist";
 import { openDir$ } from "../../state/resourceLoader";
 import { defaultIntensiveStrategy } from "../../type/SubtitlePlayStrategy";
 import { subtitleToBeAdded$ } from "../../state/cardMaker";
+import { closeZone$ } from "../../state/zone";
 
 export const SubtitleComponent = ({
   title,
@@ -53,7 +54,9 @@ export const SubtitleComponent = ({
   onIntensiveChange,
   fromZoneId,
   layoutMode,
+  inTVModeFullScreen
 }: {
+  inTVModeFullScreen?: boolean;
   fromZoneId?: string;
   title: string;
   style?: CSSProperties;
@@ -105,7 +108,7 @@ export const SubtitleComponent = ({
   }, [virtuoso, scrollToIndex, scrollTo]);
 
   const subtitleFontSize = userPreference.subtitleFontSize;
-  const playlistPromise = getPlaylistByPlayingVideo(filePath);
+  const [playlistPromise] = useState(getPlaylistByPlayingVideo(filePath));
 
   useEffect(() => {
     if (!fromZoneId) {
@@ -268,6 +271,7 @@ export const SubtitleComponent = ({
             justifyContent: 'center',
             flexDirection: 'column',
             minWidth: '95px',
+            maxWidth: '95px',
           }}>
             <Button disabled={index <= 0} style={{ width: '50px', height: '50px', color: '#ccc', margin: '14px', borderRadius: '50%' }} type="ghost" onClick={() => {
               const item = subtitles[index - 1];
@@ -422,6 +426,7 @@ export const SubtitleComponent = ({
                     end: 0,
                     subtitles: []
                   });
+                  fromZoneId && closeZone$.next(fromZoneId);
                 });
               }}
             >
@@ -457,6 +462,7 @@ export const SubtitleComponent = ({
                   if (nextIndex === playlist.length) {
                     nextIndex = 0;
                   }
+                  fromZoneId && closeZone$.next(fromZoneId);
                   playSubtitle$.next({
                     file: playlist[nextIndex],
                     start: 0,
@@ -552,6 +558,7 @@ export const SubtitleComponent = ({
             justifyContent: 'center',
             flexDirection: 'column',
             minWidth: '95px',
+            maxWidth: '95px',
           }}>
             <Button disabled={index >= (subtitles.length - 1)} style={{ width: '50px', height: '50px', color: '#ccc', margin: '14px', borderRadius: '50%' }} type="ghost" onClick={() => {
               const item = subtitles[index + 1];
@@ -780,6 +787,18 @@ export const SubtitleComponent = ({
     return null;
   }
   console.log('render subtitle, scrollToIndex:', scrollToIndex);
+  if (inTVModeFullScreen) {
+    if (userPreference.hideSubtitlesInTvMode) {
+      return null;
+    }
+    const item = subtitles[scrollToIndex];
+    const { end, start, subtitles: localSubtitles, id } = item;
+    const subtitleContainerWidth = document.body.clientWidth;
+    const subtitleContainerFontSize = subtitleContainerWidth * 0.02;
+    return <div style={{ color: '#fff', background: 'rgba(0, 0, 0, .3)', fontSize: `${subtitleContainerFontSize}px`, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center'}}>{localSubtitles.map((s) => {
+      return <div style={{textAlign: 'center'}}> {s} </div>
+    })}</div>
+  }
   return (
     <div style={{ width: '100%', flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
       {
