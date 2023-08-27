@@ -26,6 +26,7 @@ import { userPreference$, UserPreference } from "../../state/preference";
 import { closeZone$ } from "../../state/zone";
 import { getPlaylistByPlayingVideo } from "../../state/playlist";
 import { fullscreen } from "../../utils/fullscreen";
+import { isFullscreen$ } from "../../state/system";
 
 type VideoState = {
   subtitles: Subtitle[];
@@ -109,20 +110,27 @@ export const Video = ({
   useEffect(() => {
     if (userPreference.tvMode && wrapperRef.current) {
       setTimeout(() => {
-        const ele: any = wrapperRef.current!;
-        fullscreen(ele).then(() => {
+        fullscreen().then(() => {
           store.inTVModeFullScreen = true;
           store.player?.getInternalPlayer().play().catch((e: any) => message.error(e.toString()));
           wrapperRef.current!.focus();
-          wrapperRef.current!.onfullscreenchange = (event: any) => {
-            console.log('onfullscreenchange:', event);
-            let elem = event.target;
-            let isFullscreen = document.fullscreenElement === elem;
-            if (!isFullscreen) {
-              closeZone$.next(zoneId);
+          isFullscreen$.subscribe({
+            next(isFullscreen) {
+              if (!isFullscreen) {
+                console.log('')
+                closeZone$.next(zoneId);
+              }
             }
-            store.inTVModeFullScreen = isFullscreen;
-          }
+          });
+          // wrapperRef.current!.onfullscreenchange = (event: any) => {
+          //   console.log('onfullscreenchange:', event);
+          //   let elem = event.target;
+          //   let isFullscreen = document.fullscreenElement === elem;
+          //   if (!isFullscreen) {
+          //     closeZone$.next(zoneId);
+          //   }
+          //   store.inTVModeFullScreen = isFullscreen;
+          // }
         }).catch((e: any) => message.error(e.toString()));
       }, 100);
     }

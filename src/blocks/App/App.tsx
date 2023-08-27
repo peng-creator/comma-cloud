@@ -395,10 +395,6 @@ export const App = () => {
   return (
     <div style={{ height: "100%", position: "relative" }}>
       <TapCache />
-      <FloatDict></FloatDict>
-      <FloatCardMaker></FloatCardMaker>
-      <FloatVideo></FloatVideo>
-      <FloatPDF></FloatPDF>
       <ContextMenu
         id="MENU_ID"
         animation={false}
@@ -712,6 +708,10 @@ export const App = () => {
       {zones.map(zone => {
         return <ZoneWrapper difinition={zone} key={zone.id} onClose={() => { removeZone(zone); }}></ZoneWrapper>
       })}
+      <FloatDict></FloatDict>
+      <FloatCardMaker></FloatCardMaker>
+      <FloatVideo></FloatVideo>
+      <FloatPDF></FloatPDF>
     </div>
   );
 };

@@ -83,6 +83,7 @@ const columns: ColumnsType<FlashCard> = [
     title: 'DueDate',
     dataIndex: 'dueDate',
     key: 'dueDate',
+    width: '180px',
     render(date: number) {
       return <div>{new Date(date).toLocaleString()}</div>
     },
@@ -90,17 +91,21 @@ const columns: ColumnsType<FlashCard> = [
     title: 'Interval',
     dataIndex: 'interval',
     key: 'interval',
+    width: '20px'
   },{
     title: 'Efactor',
     dataIndex: 'efactor',
     key: 'efactor',
+    width: '20px'
   },{
     title: 'Repetition',
     dataIndex: 'repetition',
     key: 'repetition',
+    width: '20px'
   }, {
     title: 'Action',
     key: 'action',
+    width: '20px',
     render: (_, record) => (
       <Space size="middle">
           <Popconfirm
@@ -242,15 +247,15 @@ const Component = ({ layoutMode }: { layoutMode: number }) => {
   };
   return (
     <div
-      style={{ height: '100%', padding: '5px', paddingTop: '14px' }}
+      style={{ height: '100%', width: '100%', background: '#000', borderRadius: '12px', overflow: 'hidden' }}
     >
       <div style={{ display: 'flex', height: '36px', alignItems: 'stretch' }}>
-        <div style={{ width: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer' }} className={tabIndex === 0 ? styles.tabSelected : ''}
+        <div style={{ width: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', borderBottom: '2px solid #000' }} className={tabIndex === 0 ? styles.tabSelected : ''}
           onClick={() => {
             setTabIndex(0);
           }}
         >卡片集</div>
-        <div style={{ width: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer' }} className={tabIndex === 1 ? styles.tabSelected : ''}
+        <div style={{ width: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', borderBottom: '2px solid #000' }} className={tabIndex === 1 ? styles.tabSelected : ''}
           onClick={() => {
             setTabIndex(1);
             setCurrentCollectionName('');
@@ -680,6 +685,7 @@ const Component = ({ layoutMode }: { layoutMode: number }) => {
           width: "100%",
           height: "calc(100% - 36px)",
           overflow: "auto",
+          padding: '14px'
         }}
         >
           <div style={{
@@ -687,7 +693,7 @@ const Component = ({ layoutMode }: { layoutMode: number }) => {
           flexDirection: layoutMode !== 0 ? "row" : "column",
           width: "100%",
           height: "100%",
-          minWidth: '1200px',
+          minWidth: '600px',
         }}>
             <Table columns={columns} dataSource={cardPageData.map((card) => {
               return {...card, key: card.id};

@@ -55,4 +55,9 @@ export const tapSearch$ = tapWord$.pipe(
 
 export const textSearch$ = new Subject<string>();
 
+export const searchSentenceImmediately = (s: string) => {
+  textSearch$.next(s);
+};
+
+
 export const search$ = merge(tapSearch$, textSearch$).pipe(shareReplay(1));

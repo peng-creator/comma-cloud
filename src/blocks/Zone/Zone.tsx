@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ZoneDefinition, ZoneType } from '../../type/Zone';
 import { CardMaker } from '../CardMaker/CardMaker';
-import { Dict } from '../Dict/Dict';
-import { PDFView } from '../PDFView/PDFView';
 import { Video } from '../Video/Video';
 import styles from './Zone.module.css';
 import { dragWindowEnd$, dragWindowStart$, isDraggingSplitBar$, toggleLayout$, zoneHighlightOutput$ } from "../../state/zone";
@@ -14,7 +12,6 @@ import { message } from 'antd';
 import { ResourceLoader } from '../ResourceLoader/ResourceLoader';
 
 const ZoneMapping: { [key in ZoneType]: (...args: any[]) => JSX.Element | null} = {
-  dict: Dict,
   pdf: PDFViewer,
   video: Video,
   cardMaker: CardMaker,
@@ -87,7 +84,7 @@ export const Zone = ({difinition} : {difinition: ZoneDefinition}) => {
   const Component = ZoneMapping[difinition.type];
 
   if (Component) {
-    return <div id={`zone-${difinition.id}`} style={{ position:'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', paddingBottom: '20px'}}>
+    return <div id={`zone-${difinition.id}`} style={{ position:'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', }}>
       {showMask && <div style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1,}}></div>}
       {highlight && <div style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 2, background: 'rgba(49, 106, 239, 0.6)'}}></div>}
       <Component {...difinition.data} zoneId={difinition.id} title={difinition.title} layoutMode={layoutMode} 

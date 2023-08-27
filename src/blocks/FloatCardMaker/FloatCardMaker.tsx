@@ -6,43 +6,15 @@ import { showFloatCardMaker$ } from "../../state/cardMaker";
 import { UserPreference, userPreference$ } from "../../state/preference";
 import { tapSearch$, } from "../../state/search";
 import { CardMaker } from "../CardMaker/CardMaker";
+import { FloatWrapper } from "../FloatWrapper/FloatWrapper";
 
 
-export const FloatCardMaker = ({
-  style,
-}: {
-  style?: CSSProperties;
-}) => {
+export const FloatCardMaker = () => {
   const [show, setShow] = useBehavior(showFloatCardMaker$, false);
-
-
-  return (
-<Modal
-    width="90%"
-    style={{
-        height: 'calc(100% - 50px)',
-        top: '50%',
-        transform: 'translate(0, -50%)',
-        minHeight: '550px',
-    }}
-    modalRender={() => {
-        return  <div style={{
-            background: '#252a31',
-            height: '100%',
-            width: '100%',
-            borderRadius: '14px',
-            pointerEvents: 'auto',
-            overflow: 'hidden',
-            color: '#ccc',
-        }}>
-          <CardMaker layoutMode={0} ></CardMaker>
-        </div>;
-    }}
-    footer={null}
-    closable={false}
-    visible={show}
-    onCancel={() => { setShow(false) }}
-    onOk={() => { setShow(false) }}
-    />
-  );
+  if (!show) {
+    return null;
+  }
+  return <FloatWrapper onClose={() => setShow(false)}>
+    <CardMaker layoutMode={0} ></CardMaker>
+  </FloatWrapper>
 };

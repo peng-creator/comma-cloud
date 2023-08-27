@@ -6,7 +6,7 @@ import { useContextMenu } from "react-contexify";
 import { setContextMenu } from "../../state/contextMenu";
 import { pdfNote$ } from "../CardMaker/CardMaker";
 import { PDFNote } from "../../type/PDFNote";
-import { searchSentence, tapSearch$, tapWord$ } from "../../state/search";
+import { searchSentence, searchSentenceImmediately, tapSearch$, tapWord$ } from "../../state/search";
 import { auditTime, bufferWhen, debounceTime, filter, Subject, take, tap } from "rxjs";
 import { host } from "../../utils/host";
 import { DownOutlined, LeftOutlined, RightOutlined, UnorderedListOutlined } from "@ant-design/icons";
@@ -15,7 +15,9 @@ import { complementary, hex2rgbObject } from 'lumino';
 import { useStore } from "../../store";
 import { saveRecord } from "../../service/http/Records";
 import { pdfNoteToBeAdded$ } from "../../state/cardMaker";
-import { fullscreen } from "../../utils/fullscreen";
+import { exitFullScreen, fullscreen } from "../../utils/fullscreen";
+import { useBehavior } from "../../state";
+import { isFullscreen$ } from "../../state/system";
 
 const MENU_ID = "MENU_ID";
 
@@ -169,6 +171,7 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
   const setSelectStartIndex = (selectStartIndex: number) => store.selectStartIndex = selectStartIndex;
   const setColor = (color: string) => store.color = color;
   const setPointerDownTarget = (target: HTMLElement) => store.pointerDownTarget = target;
+  const [isFullscreen] = useBehavior(isFullscreen$, false);
 
   const [createdNote, setCreatedNote] = useState<PDFNote | null>(null);
 
@@ -392,33 +395,8 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
         content: sentence,
       };
       setCreatedNote(pdfNote);
-      setContextMenu([
-        [
-          {
-            onClick: () => {
-              pdfNote$.next(pdfNote);
-              pdfNoteInput$.next(pdfNote);
-            },
-            title: '加入卡片',
-          },
-          {
-            onClick: () => {
-              searchSentence(sentence);
-              pdfNoteToBeAdded$.next(pdfNote);
-            },
-            title: '翻译',
-          },
-          {
-            onClick: () => {
-              cancelHighlight(start, end);
-              setCreatedNote(null);
-            },
-            title: '撤销',
-          },
-        ]
-      ]);
-      show(e);
-
+      searchSentenceImmediately(sentence);
+      pdfNoteToBeAdded$.next(pdfNote);
     } else if (targetIsWordEl && createdNote !== null) { // 点击文字，且当前已有标注
       console.log('点击文字，且当前已有标注');
       console.log('checkSelectEnd')
@@ -598,11 +576,10 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
           trigger={['click']}
           overlay={<div className="pdfHeader" style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', background: '#000', color: '#ccc' }}>
             <Button onClick={() => { 
-              let isFullscreen = document.fullscreenElement === containerRef.current;
               if(isFullscreen) {
-                document.exitFullscreen();
+                exitFullScreen();
               } else {
-                fullscreen(containerRef.current);
+                fullscreen();
               }
              }}>切换全屏</Button>
             <Button
