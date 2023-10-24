@@ -19,7 +19,7 @@
     <script>
       window.addEventListener('error', function (e) {
         if (e.message !== 'ResizeObserver loop limit exceeded') {
-          document.write(e.message);
+          setTimeout(() => window.location.reload(), 2000);
         }
       })
     </script>

@@ -41,5 +41,7 @@ export const reportError = async (error: any) => {
 
 window.addEventListener('error', (event) => {
   console.log('unexpected error:', event);
-  reportError(event.message);
+  if (event.message !== 'ResizeObserver loop limit exceeded') {
+    reportError(event.error.stack);
+  }
 }, true);
