@@ -637,14 +637,27 @@ export const App = () => {
               addZone({
                 title: "遥控器",
                 type: "remoteController",
-                data: {
-                  // name: "有道",
-                  // template: "http://mobile.youdao.com/dict?le=eng&q={}",
-                },
+                data: {},
               },);
             }}
           >
             遥控器
+          </Button>
+          <Button
+            type='text'
+            style={{ color: '#ccc', height: '40px' }}
+            onClick={() => {
+              addZone({
+                title: "词典",
+                type: "dict",
+                data: {
+                  name: "有道",
+                  template: "http://mobile.youdao.com/dict?le=eng&q={}",
+                },
+              },);
+            }}
+          >
+            词典
           </Button>
           <Button
             type="text"

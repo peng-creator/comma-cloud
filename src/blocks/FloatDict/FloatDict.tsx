@@ -4,7 +4,7 @@ import { skip, startWith } from "rxjs";
 import { useBehavior } from "../../state";
 import { pdfNoteToBeAdded$, showFloatCardMaker$, subtitleToBeAdded$ } from "../../state/cardMaker";
 import { UserPreference, userPreference$ } from "../../state/preference";
-import { search$, tapSearch$, } from "../../state/search";
+import { localSearch$, search$, tapSearch$, } from "../../state/search";
 
 import type { TabsProps } from 'antd';
 import { FloatWrapper } from "../FloatWrapper/FloatWrapper";
@@ -15,9 +15,10 @@ export const FloatDict = () => {
   const [subtitleToBeAdded] = useBehavior(subtitleToBeAdded$, null);
   const [pdfNoteToBeAdded] = useBehavior(pdfNoteToBeAdded$, null);
   const [AIQuestion, setAIQuestion] = useState([] as string[]);
-
+  const [userPreference] =  useBehavior(userPreference$, {} as UserPreference);
+  
   useEffect(() => {
-    const sp = search$.subscribe({
+    const sp = localSearch$.subscribe({
       next(s) {
         setSearchContent(s);
       },
@@ -63,7 +64,7 @@ export const FloatDict = () => {
     },
   ];
 
-  if (!searchContent) {
+  if (!searchContent || !userPreference.floatDict) {
     return null;
   }
   return <FloatWrapper onClose={() => setSearchContent('')}><div style={{
@@ -87,11 +88,15 @@ export const FloatDict = () => {
             style={{ flexGrow: 1, width: '100%', height: '100%' }}
           ></iframe>  
         }
-        <div>
-          {tabKey === '2' && AIQuestion.map((question: string, index) => {
-            return <div key={index}>{question}</div>
-          }) }
-        </div>
+        {tabKey === '2' &&
+          <div style={{width: '100%', height: '100%', display: 'flex', flexDirection: 'column'}}>
+            <div style={{overflowY: 'auto', display: 'flex', justifyContent: 'space-around', minWidth: '360px', alignItems: 'stretch', height: '200px'}}>
+              {AIQuestion.map((question: string, index) => {
+                return <textarea value={question} key={index} style={{flexGrow: 1}}/>
+              })}
+            </div>
+            <iframe src="https://yiyan.baidu.com/" style={{width: '100%', flexGrow: 1, border: 'none'}} ></iframe>
+          </div>}
       </div>
 
     </div>

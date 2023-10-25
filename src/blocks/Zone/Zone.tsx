@@ -10,8 +10,10 @@ import { StandaloneSubtitle } from '../StandaloneSubtitle/StandaloneSubtitle';
 import { CardReviewer } from '../CardReviewer/CardReviewer';
 import { message } from 'antd';
 import { ResourceLoader } from '../ResourceLoader/ResourceLoader';
+import { Dict } from '../Dict/Dict';
 
 const ZoneMapping: { [key in ZoneType]: (...args: any[]) => JSX.Element | null} = {
+  dict: Dict,
   pdf: PDFViewer,
   video: Video,
   cardMaker: CardMaker,

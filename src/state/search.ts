@@ -46,9 +46,9 @@ export const tapSearch$ = tapWord$.pipe(
   }),
   map((words) => {
     return words.join(" ")
-        .trim()
-        .replace(/^\p{P}+/u, "")
-        .replace(/\p{P}+$/u, "");
+      .trim()
+      .replace(/^\p{P}+/u, "")
+      .replace(/\p{P}+$/u, "");
   }),
   // shareReplay(1),
 );
@@ -59,5 +59,17 @@ export const searchSentenceImmediately = (s: string) => {
   textSearch$.next(s);
 };
 
+export const localSearch$ = merge(
+  tapSearch$, 
+  textSearch$.pipe(
+    map(
+      text => text.trim()
+      .replace(/^\p{P}+/u, "")
+      .replace(/\p{P}+$/u, "")
+    )
+  ),
+).pipe(shareReplay(1));
 
-export const search$ = merge(tapSearch$, textSearch$).pipe(shareReplay(1));
+export const remoteSearch$ = new Subject<string>();
+
+export const search$ = merge(tapSearch$, textSearch$, remoteSearch$).pipe(shareReplay(1));

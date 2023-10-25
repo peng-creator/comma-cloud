@@ -2,7 +2,7 @@ import { map, Observable, Subject, Subscription, throttleTime } from "rxjs";
 import { addSubtitle$, pdfNote$ } from "../../blocks/CardMaker/CardMaker";
 import { pdfNoteInput$ } from "../../blocks/PDFViewer/PDFViewer";
 import { remoteControlInput$, remoteControlOutput$ } from "../../state/remoteContol";
-import { tapSearch$, textSearch$ } from "../../state/search";
+import { tapSearch$, remoteSearch$ } from "../../state/search";
 import { addSubtitleInput$ } from "../../state/subtitle";
 import { zoneHighlightInput$, zoneHighlightOutput$ } from "../../state/zone";
 import { host } from "../../utils/host";
@@ -132,7 +132,7 @@ openWebsocketStreaming(`ws://${host}:8080`, {
   addSubtitleToCard: addSubtitleInput$.pipe(throttleTime(1000)),
   addPDFNoteToCard: pdfNoteInput$.pipe(throttleTime(1000)),
 }, {
-  search: textSearch$,
+  search: remoteSearch$,
   zoneHighlight: zoneHighlightOutput$,
   remoteControl: remoteControlOutput$,
   addSubtitleToCard: addSubtitle$,
