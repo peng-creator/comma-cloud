@@ -420,7 +420,7 @@ export const App = () => {
           );
         })}
       </ContextMenu>
-      <div style={{ height: 'calc(100% - 40px)' }}>
+      <div style={{ height: 'calc(100% - 60px)' }}>
         <Home></Home>
       </div>
       <div style={{
@@ -586,87 +586,89 @@ export const App = () => {
             }}
           />
         }
-        <div style={{ display: 'flex', minWidth: '400px'}}>
-          <Button
-            type='text'
-            style={{ color: '#ccc', height: '40px' }}
-            onClick={() => {
-              addZone({
-                title: '文件管理',
-                type: 'resourceLoader',
-                data: {
-                  defaultDir
-                },
-              })
-            }}
-          >
-            文件
-          </Button>
-          <Button
-            type='text'
-            style={{ color: '#ccc', height: '40px' }}
-            onClick={() => {
-              addZone({
-                title: "卡片",
-                type: "cardMaker",
-                data: {
-                },
-              },);
-            }}
-          >
-            卡片
-          </Button>
-          <Button
-            type='text'
-            style={{ color: '#ccc', height: '40px' }}
-            onClick={() => {
-              addZone({
-                title: "SuperMemo",
-                type: "cardReviewer",
-                data: {
-                },
-              },);
-            }}
-          >
-            SuperMemo
-          </Button>
-          <Button
-            type='text'
-            style={{ color: '#ccc', height: '40px' }}
-            onClick={() => {
-              addZone({
-                title: "遥控器",
-                type: "remoteController",
-                data: {
-                  // name: "有道",
-                  // template: "http://mobile.youdao.com/dict?le=eng&q={}",
-                },
-              },);
-            }}
-          >
-            遥控器
-          </Button>
-          <Button
-            type="text"
-            style={{ color: '#ccc', height: '40px' }}
-            onClick={() => {
-              const hide = message.loading('加载记录中...', 0);
-              getRecords().then((records) => {
-                setRecords(records);
-                setShowRecordModal(true);
-              }).finally(() => {
-                hide();
-              });
-            }}>浏览记录</Button>
-          <Button
-            type='text'
-            style={{ color: '#ccc', height: '40px' }}
-            onClick={() => {
-              setShowPreferenceModal(true);
-            }}
-          >
-            设置
-          </Button>
+        <div style={{ minWidth: '300px', maxWidth: '100%', overflowY: 'hidden', overflowX: 'auto', }}>
+          <div style={{display: 'flex', padding: '0 14px', }}>
+            <Button
+              type='text'
+              style={{ color: '#ccc', height: '60px' }}
+              onClick={() => {
+                addZone({
+                  title: '文件管理',
+                  type: 'resourceLoader',
+                  data: {
+                    defaultDir
+                  },
+                })
+              }}
+            >
+              文件
+            </Button>
+            <Button
+              type='text'
+              style={{ color: '#ccc', height: '60px' }}
+              onClick={() => {
+                addZone({
+                  title: "卡片",
+                  type: "cardMaker",
+                  data: {
+                  },
+                },);
+              }}
+            >
+              卡片
+            </Button>
+            <Button
+              type='text'
+              style={{ color: '#ccc', height: '60px' }}
+              onClick={() => {
+                addZone({
+                  title: "SuperMemo",
+                  type: "cardReviewer",
+                  data: {
+                  },
+                },);
+              }}
+            >
+              SuperMemo
+            </Button>
+            <Button
+              type='text'
+              style={{ color: '#ccc', height: '60px' }}
+              onClick={() => {
+                addZone({
+                  title: "遥控器",
+                  type: "remoteController",
+                  data: {
+                    // name: "有道",
+                    // template: "http://mobile.youdao.com/dict?le=eng&q={}",
+                  },
+                },);
+              }}
+            >
+              遥控器
+            </Button>
+            <Button
+              type="text"
+              style={{ color: '#ccc', height: '60px' }}
+              onClick={() => {
+                const hide = message.loading('加载记录中...', 0);
+                getRecords().then((records) => {
+                  setRecords(records);
+                  setShowRecordModal(true);
+                }).finally(() => {
+                  hide();
+                });
+              }}>浏览记录</Button>
+            <Button
+              type='text'
+              style={{ color: '#ccc', height: '60px' }}
+              onClick={() => {
+                setShowPreferenceModal(true);
+              }}
+            >
+              设置
+            </Button>
+          </div>
         </div>
         {
           showRecordModal && <Modal
