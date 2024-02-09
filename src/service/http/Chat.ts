@@ -18,6 +18,7 @@ import { host } from '../../utils/host';
 import { ajax } from 'rxjs/ajax';
 import { map, catchError, of, tap, Subject, scan } from 'rxjs';
 import { fetchEventSource } from '@microsoft/fetch-event-source';
+import { axiosInstancePromise } from '.';
 
 type MessageHistory = {
     role: "assistant" | "user";
@@ -66,5 +67,9 @@ export const chat = (question: string, history: MessageHistory[]) => {
             return acc + curr;
         }, ''),
     );
-}
+};
 
+export const askAI = async (messages: any) => {
+    const axios = await axiosInstancePromise;
+    return axios.post(`/askAI`, messages).then(res => res.data.result as string);;
+}

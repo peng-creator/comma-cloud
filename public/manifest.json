@@ -11,5 +11,26 @@
       "sizes": "512x512",
       "type": "image/png"
     }
+  ],
+  "screenshots" : [
+    {
+      "src": "assets/screenshots/1.png",
+      "sizes": "1508x1709",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Video player of Comma"
+    },
+    {
+      "src": "assets/screenshots/2.png",
+      "sizes": "1508x1709",
+      "type": "image/png",
+      "label": "Homescreen of Comma"
+    },
+    {
+      "src": "assets/screenshots/3.png",
+      "sizes": "1508x1709",
+      "type": "image/png",
+      "label": "PDF reader of Comma"
+    }
   ]
 }

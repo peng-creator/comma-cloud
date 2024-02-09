@@ -8,15 +8,16 @@ import { localSearch$, search$, tapSearch$, } from "../../state/search";
 
 import type { TabsProps } from 'antd';
 import { FloatWrapper } from "../FloatWrapper/FloatWrapper";
+import { askAI } from "../../service/http/Chat";
 
 export const FloatDict = () => {
   const [searchContent, setSearchContent] = useState('');
   const [tabKey, setTabKey] = useState('1');
   const [subtitleToBeAdded] = useBehavior(subtitleToBeAdded$, null);
   const [pdfNoteToBeAdded] = useBehavior(pdfNoteToBeAdded$, null);
-  const [AIQuestion, setAIQuestion] = useState([] as string[]);
   const [userPreference] =  useBehavior(userPreference$, {} as UserPreference);
-  
+  const [AIAnswer, setAIAnswer] = useState('');
+
   useEffect(() => {
     const sp = localSearch$.subscribe({
       next(s) {
@@ -28,28 +29,32 @@ export const FloatDict = () => {
     };
   }, []);
 
-
   useEffect(() => {
-    if (!subtitleToBeAdded || !searchContent || tabKey !== '2' ) {
+    if (!pdfNoteToBeAdded && !subtitleToBeAdded || !searchContent || tabKey !== '2' ) {
       return;
     }
-    setAIQuestion([
-      `what does "${searchContent}" mean in context: \`\`\`${subtitleToBeAdded.subtitles.join(' ')}\`\`\``,
-      `given context: ${subtitleToBeAdded.subtitles.join(' ')}, explain ${searchContent} in Chinese`,
-      `translate ${searchContent} to Chinese of context ${subtitleToBeAdded.subtitles.join(' ')}`
-    ]);
-  }, [subtitleToBeAdded, searchContent, tabKey]);
-
-  useEffect(() => {
-    if (!pdfNoteToBeAdded || !searchContent || tabKey !== '2' ) {
+    console.log('asking ai');
+    let question = '';
+    if (subtitleToBeAdded) {
+      question = `given context: ${subtitleToBeAdded.subtitles.join(' ')}, explain ${searchContent} in Chinese`;
+    }
+    if (pdfNoteToBeAdded) {
+      question = `explain ${searchContent} in Chinese`;
+    }
+    if (!question) {
       return;
     }
-    setAIQuestion([
-      `simplify: ${searchContent}`,
-      `translate to Chinese: ${searchContent}`,
-      `summarize: ${searchContent}`
-    ]);
-  }, [pdfNoteToBeAdded, searchContent, tabKey]);
+    console.log('asking ai:', question);
+    setAIAnswer('');
+    askAI({messages: [
+      {
+        content: question,
+        role: "user",
+      }
+    ]}).then((res: string) => {
+      setAIAnswer(res);
+    });
+  }, [tabKey]);
 
   const items: TabsProps['items'] = [
     {
@@ -63,6 +68,16 @@ export const FloatDict = () => {
       children: '',
     },
   ];
+
+  useEffect(() => {
+    if (!searchContent || !userPreference.floatDict) {
+      setAIAnswer('');
+      setSearchContent('');
+      setTabKey('1');
+    }
+  }, [
+    searchContent, userPreference.floatDict
+  ]);
 
   if (!searchContent || !userPreference.floatDict) {
     return null;
@@ -90,12 +105,7 @@ export const FloatDict = () => {
         }
         {tabKey === '2' &&
           <div style={{width: '100%', height: '100%', display: 'flex', flexDirection: 'column'}}>
-            <div style={{overflowY: 'auto', display: 'flex', justifyContent: 'space-around', minWidth: '360px', alignItems: 'stretch', height: '200px'}}>
-              {AIQuestion.map((question: string, index) => {
-                return <textarea value={question} key={index} style={{flexGrow: 1}}/>
-              })}
-            </div>
-            <iframe src="https://yiyan.baidu.com/" style={{width: '100%', flexGrow: 1, border: 'none'}} ></iframe>
+            {AIAnswer || 'AI思考中...'}
           </div>}
       </div>
 
