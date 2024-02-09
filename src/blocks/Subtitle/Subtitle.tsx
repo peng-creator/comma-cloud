@@ -445,6 +445,31 @@ export const SubtitleComponent = ({
         flexWrap: 'wrap',
       }}>
         <Button
+              style={{
+                color: "#ccc",
+                fontSize: "30px",
+                display: "flex",
+                justifyContent: "center",
+                height: '41px',
+              }}
+              type="text"
+              onClick={() => {
+                if (isPlaying && index === scrollToIndex) {
+                  onPlayingChange(false);
+                  return;
+                }
+                if (index !== scrollToIndex) {
+                  onScrollToIndexChange(index);
+                }
+                if (index !== scrollToIndex) {
+                  playFromStart(subtitles, index);
+                }
+                onPlayingChange(true);
+              }}
+            >
+              {isPlaying && index === scrollToIndex ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
+            </Button>
+        <Button
           type="text"
           onClick={() => {
             if (item === loopingSubtitle) {
