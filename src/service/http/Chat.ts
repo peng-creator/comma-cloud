@@ -25,15 +25,14 @@ type MessageHistory = {
     content: string;
 };
 
-export const chat = (question: string, history: MessageHistory[]) => {
+export const askAI = (question: string, history: MessageHistory[] = []) => {
     const stream = new Subject();
-    fetchEventSource(`http://${host}:8000/v1/chat/completions`, {
+    fetchEventSource(`http://${host}:8080/api/askAI`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            model: "chatglm2-6b",
             stream: true,
             messages: [
                 ...history,
@@ -48,7 +47,7 @@ export const chat = (question: string, history: MessageHistory[]) => {
             console.log('msg:', msg);
             if (msg.data) {
                 const data = JSON.parse(msg.data);
-                const content = data?.choices[0]?.delta?.content;
+                const content = data?.result || '';
                 if (content) {
                     stream.next(content);
                 }
@@ -68,8 +67,3 @@ export const chat = (question: string, history: MessageHistory[]) => {
         }, ''),
     );
 };
-
-export const askAI = async (messages: any) => {
-    const axios = await axiosInstancePromise;
-    return axios.post(`/askAI`, messages).then(res => res.data.result as string);;
-}

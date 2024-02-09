@@ -35,7 +35,7 @@ import { pdfNoteToBeAdded$, subtitleToBeAdded$ } from "../../state/cardMaker";
 const MY_NAMESPACE = "2a671a64-40d5-491e-99b0-da01ff1f3341";
 export const CARD_COLLECTION_NAMESPACE = "3b671a64-40d5-491e-99b0-da01ff1f3341";
 
-const newFlashCard = (keyword: string): FlashCard => {
+export const newFlashCard = (keyword: string): FlashCard => {
   return {
     id: uuidv5(keyword + Date.now(), MY_NAMESPACE),
     title: keyword,

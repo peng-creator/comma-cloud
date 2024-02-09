@@ -14,7 +14,7 @@ export const FloatCardMaker = () => {
   if (!show) {
     return null;
   }
-  return <FloatWrapper onClose={() => setShow(false)}>
+  return <FloatWrapper onClose={() => setShow(false)} showMask>
     <CardMaker layoutMode={0} ></CardMaker>
   </FloatWrapper>
 };

@@ -1,1 +1,1 @@
-export type Subtitle = {id?: string; start: number; end: number; subtitles: string[]; file?: string; title?: string;};
+export type Subtitle = {id?: string; start: number; end: number; subtitles: string[]; file?: string; title?: string; context?: string};

@@ -1,22 +1,24 @@
-import { Button, Modal, Skeleton, Tabs } from "antd";
+import { Button, Modal, Skeleton, Spin, Tabs, message } from "antd";
 import React, { CSSProperties, useEffect, useState } from "react";
 import { skip, startWith } from "rxjs";
 import { useBehavior } from "../../state";
-import { pdfNoteToBeAdded$, showFloatCardMaker$, subtitleToBeAdded$ } from "../../state/cardMaker";
+import { aiExplain$, pdfNoteToBeAdded$, showFloatCardMaker$, subtitleToBeAdded$ } from "../../state/cardMaker";
 import { UserPreference, userPreference$ } from "../../state/preference";
 import { localSearch$, search$, tapSearch$, } from "../../state/search";
 
 import type { TabsProps } from 'antd';
 import { FloatWrapper } from "../FloatWrapper/FloatWrapper";
 import { askAI } from "../../service/http/Chat";
+import { saveCard } from "../../service/http/Card";
+import { newFlashCard } from "../CardMaker/CardMaker";
 
 export const FloatDict = () => {
   const [searchContent, setSearchContent] = useState('');
-  const [tabKey, setTabKey] = useState('1');
   const [subtitleToBeAdded] = useBehavior(subtitleToBeAdded$, null);
   const [pdfNoteToBeAdded] = useBehavior(pdfNoteToBeAdded$, null);
   const [userPreference] =  useBehavior(userPreference$, {} as UserPreference);
   const [AIAnswer, setAIAnswer] = useState('');
+  const [showAISpin,setShowAISpin] = useState(true);
 
   useEffect(() => {
     const sp = localSearch$.subscribe({
@@ -30,7 +32,7 @@ export const FloatDict = () => {
   }, []);
 
   useEffect(() => {
-    if (!pdfNoteToBeAdded && !subtitleToBeAdded || !searchContent || tabKey !== '2' ) {
+    if (!pdfNoteToBeAdded && !subtitleToBeAdded || !searchContent ) {
       return;
     }
     console.log('asking ai');
@@ -46,34 +48,24 @@ export const FloatDict = () => {
     }
     console.log('asking ai:', question);
     setAIAnswer('');
-    askAI({messages: [
-      {
-        content: question,
-        role: "user",
+    setShowAISpin(true);
+    askAI(question,).subscribe({
+      next(res) {
+        setAIAnswer(res);
+      },
+      complete() {
+        setShowAISpin(false);
+      },
+      error() {
+        setShowAISpin(false);
       }
-    ]}).then((res: string) => {
-      setAIAnswer(res);
     });
-  }, [tabKey]);
-
-  const items: TabsProps['items'] = [
-    {
-      key: '1',
-      label: `有道词典`,
-      children: '',
-    },
-    {
-      key: '2',
-      label: `Ask AI`,
-      children: '',
-    },
-  ];
+  }, [searchContent]);
 
   useEffect(() => {
     if (!searchContent || !userPreference.floatDict) {
       setAIAnswer('');
       setSearchContent('');
-      setTabKey('1');
     }
   }, [
     searchContent, userPreference.floatDict
@@ -82,37 +74,36 @@ export const FloatDict = () => {
   if (!searchContent || !userPreference.floatDict) {
     return null;
   }
-  return <FloatWrapper onClose={() => setSearchContent('')}><div style={{
+  return <FloatWrapper onClose={() => setSearchContent('')} showMask={false}><div style={{
     background: '#fff',
-    height: '100%',
+    minHeight: '5px',
     width: '100%',
     borderRadius: '14px',
     pointerEvents: 'auto',
-    overflow: 'hidden'
+    overflow: 'hidden',
+    padding: "14px"
   }}>
-    <div style={{ width: '100%', color: '#ccc', fontSize: '14px', height: 'calc(100% - 60px)', borderRadius: '14px 14px 0 0', overflow: 'hidden' }}>
-      <Tabs defaultActiveKey="1" items={items} onChange={(tabKey: string) => {
-        setTabKey(tabKey);
-      }} />
-      <div style={{ width: '100%', color: '#000', fontSize: '14px', height: 'calc(100% - 60px)', display: 'flex', padding: '0 14px'}}>
-        {tabKey === '1' && 
-          <iframe
-            title={'有道词典'}
-            src={"https://mobile.youdao.com/dict?le=eng&q={}".replace("{}", searchContent)}
-            frameBorder="0"
-            style={{ flexGrow: 1, width: '100%', height: '100%' }}
-          ></iframe>  
-        }
-        {tabKey === '2' &&
-          <div style={{width: '100%', height: '100%', display: 'flex', flexDirection: 'column'}}>
-            {AIAnswer || 'AI思考中...'}
-          </div>}
+    <div style={{fontSize: '20px', color: '#000'}}>{searchContent}</div>
+    <div style={{ width: '100%',  color: '#000', fontSize: '14px', height: 'calc(100% - 60px)', borderRadius: '14px 14px 0 0', overflow: 'hidden', marginTop: '14px', marginBottom: '14px' }}>
+      <div style={{width: '100%', height: '100%', display: 'flex', flexDirection: 'column'}}>
+        {AIAnswer} {showAISpin && <Spin/>}
       </div>
-
     </div>
-    <Button style={{ width: '100%', height: '60px', fontSize: '20px' }} onClick={() => {
-      showFloatCardMaker$.next(true);
+    <Button style={{ width: '100%', height: '40px', fontSize: '20px' }} onClick={() => {
+      const newCard = newFlashCard(searchContent);
+      newCard.back = AIAnswer;
+      if (subtitleToBeAdded) {
+        newCard.front.subtitles.push(subtitleToBeAdded);
+      }
+      if (pdfNoteToBeAdded) {
+        newCard.front.pdfNote.push(pdfNoteToBeAdded);
+      }
+      saveCard(newCard).then(() => {
+        message.success('卡片保存成功!');
+      }).catch(e => {
+        message.error('卡片保存失败!');
+      });
       setSearchContent('');
-    }}>制作卡片</Button>
+    }}>保存卡片</Button>
   </div></FloatWrapper> ;
 };
