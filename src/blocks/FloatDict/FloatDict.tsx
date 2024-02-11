@@ -1,12 +1,10 @@
 import { Button, Modal, Skeleton, Spin, Tabs, message } from "antd";
 import React, { CSSProperties, useEffect, useState } from "react";
-import { skip, startWith } from "rxjs";
 import { useBehavior } from "../../state";
-import { aiExplain$, pdfNoteToBeAdded$, showFloatCardMaker$, subtitleToBeAdded$ } from "../../state/cardMaker";
+import { pdfNoteToBeAdded$, subtitleToBeAdded$ } from "../../state/cardMaker";
 import { UserPreference, userPreference$ } from "../../state/preference";
 import { localSearch$, search$, tapSearch$, } from "../../state/search";
 
-import type { TabsProps } from 'antd';
 import { FloatWrapper } from "../FloatWrapper/FloatWrapper";
 import { askAI } from "../../service/http/Chat";
 import { saveCard } from "../../service/http/Card";
@@ -38,7 +36,14 @@ export const FloatDict = () => {
     console.log('asking ai');
     let question = '';
     if (subtitleToBeAdded) {
-      question = `given context: ${subtitleToBeAdded.subtitles.join(' ')}, explain ${searchContent} in Chinese`;
+      question = `解释 \`\`\`${subtitleToBeAdded.context?.reduce((acc, curr) => {
+        if (acc.subtitles.length === 0) {
+          acc.subtitles = [...curr.subtitles];
+        } else {
+          acc.subtitles = acc.subtitles.map((s, i) => s + curr.subtitles[i]) 
+        }
+        return acc;
+      }, {end: 0, start: 0, subtitles: []}).subtitles.join(' ') || subtitleToBeAdded.subtitles.join(' ')}\`\`\` 中的 ${searchContent} `;
     }
     if (pdfNoteToBeAdded) {
       question = `explain ${searchContent} in Chinese`;
@@ -49,7 +54,10 @@ export const FloatDict = () => {
     console.log('asking ai:', question);
     setAIAnswer('');
     setShowAISpin(true);
-    askAI(question,).subscribe({
+    askAI(question, [
+      {"role":"user","content":"你是一个资深中英双语教育家，请根据我的问题，提供相关英文单词或短语的知识介绍，要求内容简洁精炼，并按以下几个方面分点回答，每个方面使用换行符分隔，标题使用括号【】加重：\n1. 【释义】\n这个方面直接明了地给出含义和解释。\n2.【语言现象】\n解释该用法来源、语言现象来源。\n3. 【语法】\n解释时态、语法等。\n4.【上下文解释】\n如果问题提供了上下文，请结合上下文进行解释。\n5.【例句】\n给出多组中英双语例句。"},
+      {"role": "assistant", "content": "已理解，请提问吧。"},
+    ]).subscribe({
       next(res) {
         setAIAnswer(res);
       },
@@ -86,7 +94,9 @@ export const FloatDict = () => {
     <div style={{fontSize: '20px', color: '#000'}}>{searchContent}</div>
     <div style={{ width: '100%',  color: '#000', fontSize: '14px', height: 'calc(100% - 60px)', borderRadius: '14px 14px 0 0', overflow: 'hidden', marginTop: '14px', marginBottom: '14px' }}>
       <div style={{width: '100%', height: '100%', display: 'flex', flexDirection: 'column'}}>
-        {AIAnswer} {showAISpin && <Spin/>}
+       {AIAnswer.split('\n').map((p, i) => {
+        return <div key={i}>{p}</div>
+       })}{showAISpin && <Spin/>}
       </div>
     </div>
     <Button style={{ width: '100%', height: '40px', fontSize: '20px' }} onClick={() => {

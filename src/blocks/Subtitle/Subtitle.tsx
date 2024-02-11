@@ -765,6 +765,7 @@ export const SubtitleComponent = ({
                           file: filePath,
                           title,
                           ...item,
+                          context: subtitles.slice(Math.max(0, index - 2), index + 1),
                         });
                       }}
                       onWordDoubleClick={(word, wordIndex) => {
