@@ -113,12 +113,8 @@ export const App = () => {
   const [contextMenuList] = useBehavior(contextMenu$, []);
 
   const [currentNode, setCurrentNode] = useState<MosaicNode<string> | null>(null);
-  const [inputSearchValue, setInputSearchValue] = useState("");
-  const searchBoxRef: any = useRef<any>();
   const [showRecordModal, setShowRecordModal] = useState(false);
   const [records, setRecords] = useState([] as Record[]);
-  const [fullScreenZoneId, setFullScreenZoneId] = useState('');
-  const [showBottomBar, setShowBottomBar] = useState(true);
   const [showPreferenceModal, setShowPreferenceModal] = useState(false);
   const [showAccessCodeInput, setShowAccessCodeInput] = useState(false);
   const [userPreference] = useBehavior(userPreference$, {} as UserPreference);
@@ -184,17 +180,6 @@ export const App = () => {
   useEffect(() => {
     saveWorkZones(currentNode, zones);
   }, [currentNode, zones]);
-
-  useEffect(() => {
-    const sp = search$.subscribe({
-      next(s) {
-        setInputSearchValue(s);
-      },
-    })
-    return () => {
-      sp.unsubscribe();
-    };
-  }, []);
 
   const resigerZonesLocal = useCallback(() => {
     if (zones.length > 0) {
@@ -636,11 +621,25 @@ export const App = () => {
               style={{ color: '#ccc', height: '60px' }}
               onClick={() => {
                 addZone({
+                  title: "词典",
+                  type: "dict",
+                  data: {
+                    name: "有道",
+                    template: "http://mobile.youdao.com/dict?le=eng&q={}",
+                  },
+                },);
+              }}
+            >
+              词典
+            </Button>
+            <Button
+              type='text'
+              style={{ color: '#ccc', height: '60px' }}
+              onClick={() => {
+                addZone({
                   title: "遥控器",
                   type: "remoteController",
                   data: {
-                    // name: "有道",
-                    // template: "http://mobile.youdao.com/dict?le=eng&q={}",
                   },
                 },);
               }}

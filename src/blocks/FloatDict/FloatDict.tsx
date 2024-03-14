@@ -53,13 +53,18 @@ export const FloatDict = () => {
     }
     console.log('asking ai:', question);
     setAIAnswer('');
+    const questionToAnswer = JSON.parse(localStorage.getItem('AIAnswerquestion') || '{}');
+    if (questionToAnswer[question]) {
+      setAIAnswer(questionToAnswer[question]);
+      return;
+    }
     setShowAISpin(true);
-    askAI(question, [
-      {"role":"user","content":"你是一个资深中英双语教育家，请根据我的问题，提供相关英文单词或短语的知识介绍，要求内容简洁精炼，并按以下几个方面分点回答，每个方面使用换行符分隔，标题使用括号【】加重：\n1. 【释义】\n这个方面直接明了地给出含义和解释。\n2.【语言现象】\n解释该用法来源、语言现象来源。\n3. 【语法】\n解释时态、语法等。\n4.【上下文解释】\n如果问题提供了上下文，请结合上下文进行解释。\n5.【例句】\n给出多组中英双语例句。"},
-      {"role": "assistant", "content": "已理解，请提问吧。"},
-    ]).subscribe({
+    askAI(question, []).subscribe({
       next(res) {
         setAIAnswer(res);
+        const questionToAnswer = JSON.parse(localStorage.getItem('AIAnswerquestion') || '{}');
+        questionToAnswer[question] = res;
+        localStorage.setItem('AIAnswerquestion', JSON.stringify(questionToAnswer));
       },
       complete() {
         setShowAISpin(false);

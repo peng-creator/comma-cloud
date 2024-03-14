@@ -41,15 +41,12 @@ export const Dict = ({
         ...(style || {}),
       }}
     >
-      {searchContent && <iframe
+      <iframe
         title={name}
         src={template.replace("{}", searchContent)}
         frameBorder="0"
         style={{ flexGrow: 1 }}
-      ></iframe>}
-      {
-        searchContent ? null : <div>开始您的搜索</div>
-      }
+      ></iframe>
     </div>
   );
 };
