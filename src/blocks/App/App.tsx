@@ -108,7 +108,11 @@ window.addEventListener('mouseup', ({ target }) => {
 });
 
 export const App = () => {
-  const [zones, setZones] = useState<ZoneDefinition[]>([]);
+  const [zones, _setZones] = useState<ZoneDefinition[]>([]);
+  const setZones = (zones: ZoneDefinition[]) => {
+    console.log('check closing zone, setting zones:', zones);
+    _setZones(zones);
+  }
   const [defaultDir, setDefaultDir] = useState('/');
   const [contextMenuList] = useBehavior(contextMenu$, []);
 
@@ -244,7 +248,10 @@ export const App = () => {
   useEffect(() => {
     const sp = closeZone$.subscribe({
       next(zoneId) {
-        setZones(zones.filter(z => z.id !== zoneId));
+        console.log('zones before closing:', [...zones]);
+        const nextZones = zones.filter(z => z.id !== zoneId);
+        console.log('zones after closing:', [...nextZones]);
+        setZones(nextZones);
         // closeZone(zoneId);
         // (document.querySelector(`.zone-${zoneId}-CloseBtn button`) as HTMLButtonElement | null)?.click();
       },

@@ -86,7 +86,7 @@ export const SubtitleComponent = ({
   const playHow = (userPreference.intensiveStrategy || defaultIntensiveStrategy)[intensiveStrategyIndex];
   // const [showController, setShowController] = useState(false); 
   const subtitles = _subtitles || [];
-  const [smallScreen, setSmallScreen] = useState(document.documentElement.clientWidth < 680);
+  const [smallScreen, setSmallScreen] = useState(document.documentElement.clientWidth < 640);
 
   const loopingSubtitle = _loopingSubtitle !== null ? subtitles.find(({ start, end, subtitles }) => {
     return start === _loopingSubtitle.start && end === _loopingSubtitle.end && subtitles[0] === _loopingSubtitle.subtitles[0];
@@ -114,7 +114,7 @@ export const SubtitleComponent = ({
           timer = null;
         } else {
           timer = setTimeout(() => {
-            setSmallScreen(document.documentElement.clientWidth < 680);
+            setSmallScreen(document.documentElement.clientWidth < 640);
           }, 20);
         }
       }
@@ -376,16 +376,14 @@ export const SubtitleComponent = ({
         alignItems: "center",
         justifyContent: 'center',
         flexDirection: 'column',
-        ...(smallScreen ? {} : {
           minWidth: '110px',
           maxWidth: '110px',
-        }),
       }}>
         <Button disabled={index <= 0} style={{ 
-          width: smallScreen ? '35px' : '50px', 
-          height: smallScreen ? '35px' : '50px', 
+          width: '35px', 
+          height: '35px', 
           color: '#ccc', 
-          margin: smallScreen ? 0 : '14px', 
+          margin:  0, 
           borderRadius: '50%',
           display: 'flex',
           justifyContent: 'center',
@@ -400,7 +398,7 @@ export const SubtitleComponent = ({
         }}>
           <LeftOutlined />
         </Button>
-        {!smallScreen && startTimeComponent}
+        {startTimeComponent}
       </div>
     );
     const nextSubComponent = (
@@ -409,16 +407,16 @@ export const SubtitleComponent = ({
         alignItems: "center",
         justifyContent: 'center',
         flexDirection: 'column',
-        ...(smallScreen ? {} : {
+        // ...(smallScreen ? {} : {
           minWidth: '110px',
           maxWidth: '110px',
-        }),
+        // }),
       }}>
         <Button disabled={index >= (subtitles.length - 1)} style={{ 
-          width: smallScreen ? '35px' : '50px', 
-          height: smallScreen ? '35px' : '50px', 
+          width: '35px', 
+          height: '35px', 
           color: '#ccc', 
-          margin: smallScreen ? 0 : '14px', 
+          margin: 0, 
           borderRadius: '50%',
           display: 'flex',
           justifyContent: 'center',
@@ -433,11 +431,10 @@ export const SubtitleComponent = ({
         }}>
           <RightOutlined />
         </Button>
-        {!smallScreen && endTimeComponent}
+        {endTimeComponent}
       </div>
     );
-    const controlButtonsComponent = (<div style={{display: 'flex', justifyContent: 'space-between', padding: '0 14px', marginTop: '14px'}}>
-        {smallScreen && prevSubComponent}
+    const controlButtonsComponent = (<div style={{display: 'flex', justifyContent: 'space-between', padding: '0',}}>
       <div style={{
         display: "flex",
         justifyContent: "center",
@@ -451,6 +448,7 @@ export const SubtitleComponent = ({
                 display: "flex",
                 justifyContent: "center",
                 height: '41px',
+                padding: '0   10px',
               }}
               type="text"
               onClick={() => {
@@ -488,6 +486,7 @@ export const SubtitleComponent = ({
             justifyContent: "center",
             background: loopingSubtitle === item ? "#a976ec" : "none",
             height: '41px',
+            padding: '0   10px',
 
           }}
         >
@@ -496,6 +495,7 @@ export const SubtitleComponent = ({
         <Button
           type="text"
           style={{ background: intensive ? 'rgb(169, 118, 236)' : 'none', display: "flex", justifyContent: "center", 
+          padding: '0   10px',
         
           height: '41px',
         }}
@@ -509,6 +509,7 @@ export const SubtitleComponent = ({
         { !smallScreen && (<><Button
           type="text"
           style={{ color: "#ccc", fontSize: '30px', display: "flex", justifyContent: "center", 
+          padding: '0   10px',
         
           height: '41px',
         }}
@@ -526,7 +527,10 @@ export const SubtitleComponent = ({
                 end: 0,
                 subtitles: []
               });
-              fromZoneId && closeZone$.next(fromZoneId);
+              console.log('closing fromzone:', fromZoneId);
+              setTimeout(() => {
+                fromZoneId && closeZone$.next(fromZoneId);
+              });
             });
           }}
         >
@@ -535,6 +539,7 @@ export const SubtitleComponent = ({
         <Button
           type="text"
           style={{ color: "#ccc", fontSize: '30px', display: "flex", justifyContent: "center", 
+          padding: '0   10px',
         
           height: '41px',
         }}
@@ -551,6 +556,7 @@ export const SubtitleComponent = ({
         <Button
           type="text"
           style={{ color: "#ccc", fontSize: '30px', display: "flex", justifyContent: "center", 
+          padding: '0 10px',
         
           height: '41px',
         }}
@@ -562,12 +568,15 @@ export const SubtitleComponent = ({
               if (nextIndex === playlist.length) {
                 nextIndex = 0;
               }
-              fromZoneId && closeZone$.next(fromZoneId);
               playSubtitle$.next({
                 file: playlist[nextIndex],
                 start: 0,
                 end: 0,
                 subtitles: []
+              });
+              console.log('closing fromzone:', fromZoneId);
+              setTimeout(() => {
+                fromZoneId && closeZone$.next(fromZoneId);
               });
             });
           }}
@@ -652,18 +661,9 @@ export const SubtitleComponent = ({
           </Button>
         </Dropdown>
       </div>
-      {smallScreen && nextSubComponent}
       </div>
     );
-    const controllerComponent = smallScreen ? (
-      <div style={{display: 'flex', flexDirection: 'column',}}>
-        {controlButtonsComponent}
-        <div style={{display: 'flex', justifyContent: 'space-between'}}>
-          <div >{startTimeComponent}</div>
-          <div >{endTimeComponent}</div>
-        </div>
-      </div>
-    ) : (
+    const controllerComponent = (
       <div
           style={{
             display: "flex",
@@ -834,12 +834,12 @@ export const SubtitleComponent = ({
 
         </div>
     );
-    if (smallScreen) {
-      return <div style={{display: 'flex', flexDirection: 'column', height: '100%'}}>
-        {controllerComponent}
-        {subtitleComponent}
-      </div>;
-    }
+    // if (smallScreen) {
+    //   return <div style={{display: 'flex', flexDirection: 'column', height: '100%'}}>
+    //     {controllerComponent}
+    //     {subtitleComponent}
+    //   </div>;
+    // }
     return (
       <div
         key={item.id}
