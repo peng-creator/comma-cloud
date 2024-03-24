@@ -4,12 +4,10 @@ import { SubtitleComponent } from "../Subtitle/Subtitle";
 
 export const StandaloneSubtitle = ({
   fromZoneId,
-  layoutMode,
   style
 }: {
   fromZoneId: string;
   style?: CSSProperties;
-  layoutMode: number;
 }) => {
   console.log('entring StandaloneSubtitle component, fromZoneId:', fromZoneId);
   const [standaloneProps, setStandaloneProps] = useState<StandaloneSubtitleProps | null>(null);
@@ -47,7 +45,6 @@ export const StandaloneSubtitle = ({
   return <div style={{...(style || {}),}}>
       <SubtitleComponent
         {...standaloneProps}  
-        layoutMode={layoutMode}    
       ></SubtitleComponent>
     </div>
 };

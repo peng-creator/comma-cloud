@@ -1,10 +1,5 @@
 import { Button, Modal, Skeleton } from "antd";
 import React,{ CSSProperties, useEffect, useState } from "react";
-import { skip, startWith } from "rxjs";
-import { useBehavior } from "../../state";
-import { showFloatCardMaker$ } from "../../state/cardMaker";
-import { UserPreference, userPreference$ } from "../../state/preference";
-import { tapSearch$, } from "../../state/search";
 import { playFloatVideoSubtitle$ } from "../../state/video";
 import { Subtitle } from "../../type/Subtitle";
 import { Video } from "../Video/Video";

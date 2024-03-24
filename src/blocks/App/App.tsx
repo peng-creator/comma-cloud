@@ -152,39 +152,6 @@ export const App = () => {
     return () => sp.unsubscribe();
   }, []);
 
-  const saveCurrentNode = (currentNode: MosaicNode<string> | null) => {
-    console.log('debug zone error: currentNode: ', currentNode);
-    let serializedWindowTree = null;
-    try {
-      serializedWindowTree = JSON.stringify(currentNode);
-    } catch (e) {
-      if (typeof currentNode === 'string') {
-        serializedWindowTree = currentNode;
-      }
-    }
-    localStorage.setItem('serializedWindowTree', serializedWindowTree || 'null');
-  };
-
-  const saveZones = (zones: ZoneDefinition[]) => {
-    let serializedZones = '[]';
-    try {
-      console.log('debug zone error: JSON.stringify(zones), zoens:', zones);
-      serializedZones = JSON.stringify(zones);
-    } catch (e) {
-      console.log('debug zone error: JSON.stringify(zones) failed:', e);
-    }
-    localStorage.setItem('serializedZones', serializedZones);
-  };
-
-  const saveWorkZones = (currentNode: MosaicNode<string> | null, zones: ZoneDefinition[]) => {
-    saveCurrentNode(currentNode);
-    saveZones(zones);
-  };
-
-  useEffect(() => {
-    saveWorkZones(currentNode, zones);
-  }, [currentNode, zones]);
-
   const resigerZonesLocal = useCallback(() => {
     if (zones.length > 0) {
       registerZones(zones.map((zone) => {
@@ -351,23 +318,6 @@ export const App = () => {
     };
     recoverWorkZone();
   }, []);
-
-  useEffect(() => {
-    const sp = playSubtitleRecord$.subscribe({
-      next(subtitle) {
-        if (!subtitle) {
-          return;
-        }
-        const zone = zones.find(zone => zone.id === subtitle.zoneId);
-        if (zone) {
-          console.log('add subtitle record to the data of the video zone:', zone);
-          zone.data.subtitle = subtitle;
-        }
-        saveWorkZones(currentNode, zones);
-      }
-    });
-    return () => sp.unsubscribe();
-  }, [zones, currentNode]);
 
   if (showAccessCodeInput) {
     return <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
@@ -691,6 +641,9 @@ export const App = () => {
             <div style={{ width: '100%' }}>
               {
                 records.map(({ file, timestamp, progress, type }) => {
+                  if (file === undefined) {
+                    return null;
+                  }
                   const splits = file.split('/');
                   const title = splits[splits.length - 1];
                   return <div key={file} style={{ cursor: 'pointer', borderBottom: '1px solid #ccc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#ccc', marginBottom: '14px' }} onClick={() => {

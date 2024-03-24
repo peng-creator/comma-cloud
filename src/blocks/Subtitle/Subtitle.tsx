@@ -53,7 +53,6 @@ export const SubtitleComponent = ({
   onPlayingChange,
   onIntensiveChange,
   fromZoneId,
-  layoutMode,
   inTVModeFullScreen
 }: {
   inTVModeFullScreen?: boolean;
@@ -73,7 +72,6 @@ export const SubtitleComponent = ({
   onLoopingSubtitleChange: (subtitle: Subtitle | null) => void;
   onPlayingChange: (playing: boolean) => void;
   onIntensiveChange: (intensive: boolean) => void;
-  layoutMode: number;
 }) => {
   console.log('entering SubtitleComponent, title:', title);
   const [_subtitles] = useBehavior(subtitles$, []);
@@ -379,7 +377,7 @@ export const SubtitleComponent = ({
           minWidth: '110px',
           maxWidth: '110px',
       }}>
-        <Button disabled={index <= 0} style={{ 
+        <Button style={{ 
           width: '35px', 
           height: '35px', 
           color: '#ccc', 
@@ -389,11 +387,16 @@ export const SubtitleComponent = ({
           justifyContent: 'center',
           alignItems: 'center',
         }} type="ghost" onClick={() => {
+          if (index <= 0) {
+            index = subtitles.length;
+            console.log('subtitles.length:', subtitles.length);
+          }
           const item = subtitles[index - 1];
           onPlayingChange(true);
           if (loopingSubtitle !== null) {
             onLoopingSubtitleChange(item);
           }
+          console.log('change to subtitle index:', index - 1);
           onScrollToIndexChange(index - 1);
         }}>
           <LeftOutlined />
@@ -412,7 +415,7 @@ export const SubtitleComponent = ({
           maxWidth: '110px',
         // }),
       }}>
-        <Button disabled={index >= (subtitles.length - 1)} style={{ 
+        <Button style={{ 
           width: '35px', 
           height: '35px', 
           color: '#ccc', 
@@ -422,11 +425,15 @@ export const SubtitleComponent = ({
           justifyContent: 'center',
           alignItems: 'center',
         }} type="ghost" onClick={() => {
+          if (index + 1 >= subtitles.length) {
+            index = -1;
+          }
           const item = subtitles[index + 1];
           onPlayingChange(true);
           if (loopingSubtitle !== null) {
             onLoopingSubtitleChange(item);
           }
+          console.log('change to subtitle index:', index + 1);
           onScrollToIndexChange(index + 1);
         }}>
           <RightOutlined />

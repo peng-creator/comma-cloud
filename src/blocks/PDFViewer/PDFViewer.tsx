@@ -9,10 +9,9 @@ import { PDFNote } from "../../type/PDFNote";
 import { searchSentence, searchSentenceImmediately, tapSearch$, tapWord$ } from "../../state/search";
 import { auditTime, bufferWhen, debounceTime, filter, Subject, take, tap } from "rxjs";
 import { host } from "../../utils/host";
-import { DownOutlined, LeftOutlined, RightOutlined, UnorderedListOutlined } from "@ant-design/icons";
+import { LeftOutlined, RightOutlined, UnorderedListOutlined } from "@ant-design/icons";
 import { HexColorPicker } from "react-colorful";
-import { complementary, hex2rgbObject } from 'lumino';
-import { useStore } from "../../store";
+import { buildStore, takeActionOnStreams } from "../../store";
 import { saveRecord } from "../../service/http/Records";
 import { pdfNoteToBeAdded$ } from "../../state/cardMaker";
 import { exitFullScreen, fullscreen } from "../../utils/fullscreen";
@@ -115,6 +114,64 @@ function _InnerPdf({ filePath, onGetNumPages, onGetPageLoaded, pageRef, pageNumb
 
 const InnerPdf = memo(_InnerPdf);
 
+
+const initColor = localStorage.getItem('pdf-font-color') || "#ccc";
+const initBackgroundColor = localStorage.getItem('pdf-background-color') || "#000";
+
+const {store, renderOnStore} = buildStore<{
+  selectLongPressTimer: any;
+  isSelecting: boolean;
+  wordIndexMap: Map<HTMLDivElement, number>;
+  selectStartIndex: number;
+  pureMode: boolean;
+  pointerDownTarget: HTMLElement | null;
+  isModalVisible: boolean;
+  color: string;
+  backgroundColor: string;
+  colorEditing: string;
+  backgroundColorEditing: string;
+}, {}>({
+  selectLongPressTimer: null,
+  isSelecting: false,
+  wordIndexMap: new Map<HTMLDivElement, number>(),
+  selectStartIndex: -1,
+  pureMode: false,
+  pointerDownTarget: null,
+  isModalVisible: false,
+  color: initColor,
+  colorEditing: initColor,
+  backgroundColor: initBackgroundColor,
+  backgroundColorEditing: initBackgroundColor,
+});
+
+const setBackgroundColorEditing = (backgroundColorEditing: string) => store.backgroundColorEditing = backgroundColorEditing;
+const setColorEditing = (colorEditing: string) => store.colorEditing = colorEditing;
+const setBackgroundColor = (backgroundColor: string) => store.backgroundColor = backgroundColor;
+const setIsModalVisible = (isModalVisible: boolean) => store.isModalVisible = isModalVisible;
+const setIsSelecting = (isSelecting: boolean) => store.isSelecting = isSelecting;
+const setSelectStartIndex = (selectStartIndex: number) => store.selectStartIndex = selectStartIndex;
+const setColor = (color: string) => store.color = color;
+const setPointerDownTarget = (target: HTMLElement) => store.pointerDownTarget = target;
+
+const cancelColorChangeAction = takeActionOnStreams(() => {
+  let styleEl = document.querySelector('style#pdf-config');
+  const styleContetn = `
+  .pdf-container.pure-text-mode .canvas-placeholder {
+    background: ${store.backgroundColor} !important;
+  }
+  .pdf-container.pure-text-mode .pdf_page_word {
+    color: ${store.color};
+  }
+  `;
+  if (!styleEl) {
+    styleEl = document.createElement('style');
+    styleEl.id = 'pdf-config';
+    document.head.appendChild(styleEl);
+  }
+  styleEl.innerHTML = styleContetn;
+}, store.color$, store.backgroundColor$);
+
+
 function Component({ filePath: file, note }: { filePath: string; note?: PDFNote }) {
   const [outSideNoteOpened, setOutSideNoteOpened] = useState(false);
 
@@ -135,42 +192,9 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
 
   const [selectEndIndex, setSelectEndIndex] = useState(-1);
 
-  const initColor = localStorage.getItem('pdf-font-color') || "#ccc";
-  const initBackgroundColor = localStorage.getItem('pdf-background-color') || "#000";
+  renderOnStore({});
 
-  const store = useStore<{
-    selectLongPressTimer: any;
-    isSelecting: boolean;
-    wordIndexMap: Map<HTMLDivElement, number>;
-    selectStartIndex: number;
-    pureMode: boolean;
-    pointerDownTarget: HTMLElement | null;
-    isModalVisible: boolean;
-    color: string;
-    backgroundColor: string;
-    colorEditing: string;
-    backgroundColorEditing: string;
-  }>({
-    selectLongPressTimer: null,
-    isSelecting: false,
-    wordIndexMap: new Map<HTMLDivElement, number>(),
-    selectStartIndex: -1,
-    pureMode: false,
-    pointerDownTarget: null,
-    isModalVisible: false,
-    color: initColor,
-    colorEditing: initColor,
-    backgroundColor: initBackgroundColor,
-    backgroundColorEditing: initBackgroundColor,
-  });
-  const setBackgroundColorEditing = (backgroundColorEditing: string) => store.backgroundColorEditing = backgroundColorEditing;
-  const setColorEditing = (colorEditing: string) => store.colorEditing = colorEditing;
-  const setBackgroundColor = (backgroundColor: string) => store.backgroundColor = backgroundColor;
-  const setIsModalVisible = (isModalVisible: boolean) => store.isModalVisible = isModalVisible;
-  const setIsSelecting = (isSelecting: boolean) => store.isSelecting = isSelecting;
-  const setSelectStartIndex = (selectStartIndex: number) => store.selectStartIndex = selectStartIndex;
-  const setColor = (color: string) => store.color = color;
-  const setPointerDownTarget = (target: HTMLElement) => store.pointerDownTarget = target;
+
   const [isFullscreen] = useBehavior(isFullscreen$, false);
 
   const [createdNote, setCreatedNote] = useState<PDFNote | null>(null);
@@ -184,26 +208,12 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
 
   const [touchMove$] = useState(new Subject<any>());
 
-  useEffect(() => {
-    let styleEl = document.querySelector('style#pdf-config');
-    const styleContetn = `
-    .pdf-container.pure-text-mode .canvas-placeholder {
-      background: ${store.backgroundColor} !important;
-    }
-    .pdf-container.pure-text-mode .pdf_page_word {
-      color: ${store.color};
-    }
-    `;
-    if (!styleEl) {
-      styleEl = document.createElement('style');
-      styleEl.id = 'pdf-config';
-      document.head.appendChild(styleEl);
-    }
-    styleEl.innerHTML = styleContetn;
-  }, [store.color, store.backgroundColor]);
 
   useEffect(() => {
     const container = containerRef.current;
+    if (container === null) {
+      return;
+    }
     const resize$ = new Subject<any>();
     const fitWidth = () => {
       if (container) {
@@ -230,7 +240,7 @@ function Component({ filePath: file, note }: { filePath: string; note?: PDFNote 
       });
       sp.unsubscribe();
     };
-  }, [containerRef]);
+  }, [containerRef.current]);
 
   useEffect(() => {
     const container = containerRef.current;

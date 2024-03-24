@@ -128,7 +128,6 @@ export const RemoteController = ({
     )}
     {
       zone && zone.type === 'video' && <SubtitleComponent
-        layoutMode={layoutMode}
         filePath={zone.data.filePath}
         title={zone.title}
         subtitles$={subtitles$}

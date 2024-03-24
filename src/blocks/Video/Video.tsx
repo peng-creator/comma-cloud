@@ -19,7 +19,7 @@ import { remoteControlInput$, remoteControlOutput$ } from "../../state/remoteCon
 import { saveRecord } from "../../service/http/Records";
 import { playSubtitle$, playSubtitleRecord$ } from "../../state/video";
 import styles from './Video.module.css';
-import { useStore } from "../../store";
+import { buildStore, takeActionOnStreams } from "../../store";
 import { message } from "antd";
 import { useBehavior } from "../../state";
 import { userPreference$, UserPreference } from "../../state/preference";
@@ -37,36 +37,27 @@ type VideoState = {
   videoFocus: boolean;
   ready: boolean;
   outSideSubtitlePlayed: boolean;
-  startPublishingData: boolean;
   intensive: boolean;
   intensiveStrategyIndex: number;
   intensiveSubtitle: Subtitle | null;
   playbackRate: number;
   intensiveTimer: any;
-  intensiveSwithing: boolean;
+  intensiveSwitching: boolean;
   inTVModeFullScreen: boolean;
   showProgress: boolean;
   showProgressTimer: any;
   progress: number;
 };
 
-export const Video = ({
-  filePath,
-  subtitle,
-  style,
-  title,
-  zoneId,
-  layoutMode,
-}: {
-  style: CSSProperties;
+type VideoInnerState = {
   filePath: string;
-  subtitle?: Subtitle;
   zoneId: string;
-  title: string;
-  layoutMode: number;
-}) => {
-  const [userPreference] = useBehavior(userPreference$, {} as UserPreference);
-  let store = useStore<VideoState>({
+  initSubtitle: Subtitle | undefined;
+  userPreference: UserPreference,
+};
+
+const CreateVideoComponent = () => {
+  const initVideoStore = () => buildStore<VideoState, VideoInnerState>({
     subtitles: [], 
     player: null,
     playing: false,
@@ -75,23 +66,18 @@ export const Video = ({
     videoFocus: false,
     ready: false,
     outSideSubtitlePlayed: false,
-    startPublishingData: false,
     intensive: false,
     intensiveStrategyIndex: 0,
     intensiveSubtitle: null,
     playbackRate: 1,
     intensiveTimer: null,
-    intensiveSwithing: false,
+    intensiveSwitching: false,
     inTVModeFullScreen: false,
     showProgress: false,
     progress: 0,
     showProgressTimer: -1,
   });
-
-  const ref = useRef<ReactPlayer | null>(null);
-  store.player = ref.current;
-
-  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  let {store, renderOnStore, getInnerState} = initVideoStore();
 
   const seekTo = (time: number, unit: "seconds" | "fraction" = "seconds") => {
     store.player?.seekTo(time, unit);
@@ -107,39 +93,9 @@ export const Video = ({
     }
   };
 
-  useEffect(() => {
-    if (userPreference.tvMode && wrapperRef.current) {
-      setTimeout(() => {
-        fullscreen().then(() => {
-          store.inTVModeFullScreen = true;
-          store.player?.getInternalPlayer().play().catch((e: any) => message.error(e.toString()));
-          wrapperRef.current!.focus();
-          isFullscreen$.subscribe({
-            next(isFullscreen) {
-              if (!isFullscreen) {
-                console.log('')
-                closeZone$.next(zoneId);
-              }
-            }
-          });
-          // wrapperRef.current!.onfullscreenchange = (event: any) => {
-          //   console.log('onfullscreenchange:', event);
-          //   let elem = event.target;
-          //   let isFullscreen = document.fullscreenElement === elem;
-          //   if (!isFullscreen) {
-          //     closeZone$.next(zoneId);
-          //   }
-          //   store.inTVModeFullScreen = isFullscreen;
-          // }
-        }).catch((e: any) => message.error(e.toString()));
-      }, 100);
-    }
-  }, [userPreference.tvMode, wrapperRef]);
-
-  const setScrollToIndex = useCallback((index: number, needToSeek = true) => {
+  const setScrollToIndex = (index: number, needToSeek = true) => {
     store.intensiveSubtitle = null;
     store.scrollToIndex = index;
-    console.log('debug setScrollToIndex: ', store.scrollToIndex);
     const sub = store.subtitles[index];
     if (sub && needToSeek) {
       seekTo(sub.start / 1000);
@@ -147,143 +103,115 @@ export const Video = ({
     if (store.intensive) {
       store.intensiveSubtitle = sub;
     }
-    store.intensiveSwithing = false;
+    store.intensiveSwitching = false;
     store.intensiveStrategyIndex = 0;
     store.playbackRate = 1;
-    console.log('debug onScrollToIndexChange, store.intensiveStrategyIndex:', store.intensiveStrategyIndex, ', store.playbackRate:', store.playbackRate);
     clearInterval(store.intensiveTimer);
-  }, [store.subtitles, store.intensive, seekTo, store.intensiveTimer]); 
+  };
 
-  useEffect(() => {
-    if (!store.subtitles || store.subtitles.length === 0 || !store.subtitles[store.scrollToIndex]) {
+  const setSubtitles = (subtitles: Subtitle[]) => {
+    const innerState = getInnerState();
+    if (!innerState) {
       return;
     }
-    saveRecord({
-      file: filePath,
-      progress: store.subtitles[store.scrollToIndex],
-      type: 'video',
-    });
-    playSubtitleRecord$.next({
-      ...store.subtitles[store.scrollToIndex],
-      file: filePath,
-      zoneId,
-    });
-  }, [store.scrollToIndex, filePath, store.subtitles, zoneId]);
-
-
-  const setSubtitles = useCallback((subtitles: Subtitle[]) => {
     if (subtitles && subtitles.length > 0) {
       store.subtitles = subtitles;
-      saveSubtitlesOfVideo(filePath, subtitles);
+      saveSubtitlesOfVideo(innerState.filePath, subtitles);
     }
-  }, [filePath]);
+  };
 
-  const publishSubtitles = useCallback(() => {
+  const publishSubtitles = () => {
+    const innerState = getInnerState();
+    if (!innerState) {
+      return;
+    }
     remoteControlInput$.next({
-      toZoneId: zoneId,
+      toZoneId: innerState.zoneId,
       action: 'setSubtitles',
       data: {
         subtitles: store.subtitles,
       }
     });
-  }, [zoneId, store.subtitles]);
+  };
 
-  useEffect(() => {
-    if (!store.startPublishingData) {
+  const publishScrollToIndex = () => {
+    const innerState = getInnerState();
+    if (!innerState) {
       return;
     }
-    publishSubtitles();
-  }, [store.startPublishingData, publishSubtitles])
-
-  const publishScrollToIndex = useCallback(() => {
     remoteControlInput$.next({
-      toZoneId: zoneId,
+      toZoneId: innerState.zoneId,
       action: 'scrollToIndex',
       data: {
         nextScrollToIndex: store.scrollToIndex,
       }
     });
-  }, [zoneId, store.scrollToIndex]);
+  };
 
-  useEffect(() => {
-    if (!store.startPublishingData) {
+  const publishSubtitleLooping = () => {
+    const innerState = getInnerState();
+    if (!innerState) {
       return;
     }
-    publishScrollToIndex();
-  }, [store.startPublishingData, publishScrollToIndex])
-
-  const publishSubtitleLooping = useCallback(() => {
     remoteControlInput$.next({
-      toZoneId: zoneId,
+      toZoneId: innerState.zoneId,
       action: 'loopingSubtitle',
       data: {
         subtitle: store.loopingSubtitle,
       }
     });
-  }, [zoneId, store.loopingSubtitle]);
+  };
 
-  useEffect(() => {
-    if (!store.startPublishingData) {
+  const publishPlayingChange = () => {
+    const innerState = getInnerState();
+    if (!innerState) {
       return;
     }
-    publishSubtitleLooping();
-  }, [store.startPublishingData, publishSubtitleLooping,])
-
-  const publishPlayingChange = useCallback(() => {
     remoteControlInput$.next({
-      toZoneId: zoneId,
+      toZoneId: innerState.zoneId,
       action: 'playingChange',
       data: {
         playing: store.playing
       }
     }) 
-  }, [zoneId, store.playing]);
+  };
 
-  useEffect(() => {
-    if (!store.startPublishingData) {
+  const publishIntensiveChange = () => {
+    const innerState = getInnerState();
+    if (!innerState) {
       return;
     }
-    publishPlayingChange();
-  }, [store.startPublishingData, publishPlayingChange]);
-
-  const publishIntensiveChange = useCallback(() => {
     remoteControlInput$.next({
-      toZoneId: zoneId,
+      toZoneId: innerState.zoneId,
       action: 'intensiveChange',
       data: {
         intensive: store.intensive
       }
     })
-  }, [zoneId, store.intensive]);
+  };
 
-  useEffect(() => {
-    if (!store.startPublishingData) {
+  const publishIntensiveStrategyIndexChange = () => {
+    const innerState = getInnerState();
+    if (!innerState) {
       return;
     }
-    publishIntensiveChange();
-  }, [store.startPublishingData, publishIntensiveChange]);
-
-  const publishIntensiveStrategyIndexChange = useCallback(() => {
     remoteControlInput$.next({
-      toZoneId: zoneId,
+      toZoneId: innerState.zoneId,
       action: 'intensiveStrategyIndexChange',
       data: {
         intensiveStrategyIndex: store.intensiveStrategyIndex
       }
     });
-  }, [zoneId, store.intensiveStrategyIndex]);
+  };
 
-  useEffect(() => {
-    if (!store.startPublishingData) {
-      return;
-    }
-    publishIntensiveStrategyIndexChange();
-  }, [ store.startPublishingData, publishIntensiveStrategyIndexChange]);
-
-  useEffect(() => {
+  const toListenRemoteControl = () => {
     const sp = remoteControlOutput$.subscribe({
       next({toZoneId, action, data,}) {
-        if (toZoneId !== zoneId) {
+        const innerState = getInnerState();
+        if (!innerState) {
+          return;
+        }
+        if (toZoneId !== innerState.zoneId) {
           return;
         }
         if (action === 'seekTime') {
@@ -298,14 +226,8 @@ export const Video = ({
           setScrollToIndex(data.nextScrollToIndex);
         }
         if (action === 'loopingSubtitle') {
-          const nextLoopingSubtitle = data.subtitle;
-          if (!nextLoopingSubtitle) {
-            setSubtitleLooping(null);
-            return;
-          }
-          if ( store.loopingSubtitle === null || nextLoopingSubtitle.start !==  store.loopingSubtitle.start && data.subtitle.end !==  store.loopingSubtitle.end) {
-            setSubtitleLooping(nextLoopingSubtitle);
-          }
+          console.log('loopingSubtitle');
+          setSubtitleLooping(data.subtitle);
         }
         if (action === 'playingChange') {
           store.playing = data.playing;
@@ -316,7 +238,6 @@ export const Video = ({
         if (action === 'startControl') {
           console.log('new remote controller, start to feed data');
           // feed the data to remote contoller
-          store.startPublishingData = true;
           publishSubtitles();
           publishScrollToIndex();
           publishSubtitleLooping();
@@ -328,32 +249,23 @@ export const Video = ({
 
     });
     return () => sp.unsubscribe();
-  }, [ store.player, 
-      zoneId, 
-      publishSubtitles,
-      publishScrollToIndex,
-      publishSubtitleLooping,
-      publishPlayingChange,
-      publishIntensiveChange,
-      setScrollToIndex,
-    ]);
+  };
 
-  useEffect(() => {
+  const toPlayInitialSubtitle = () => {
     if (store.outSideSubtitlePlayed) {
       // 此hook自动播放props传入的subtitle, 但只自动播放一次。
       return;
     }
-    const player = ref.current;
-    if (player === null) {
+    if (store.player === null) {
       return;
     }
     if (!store.ready) {
       return;
     }
-    if (subtitle) {
-      console.log('debug seeking');
-      seekTo(subtitle.start / 1000, "seconds");
-      const currentTime = subtitle.start + 1;
+    const innerState = getInnerState();
+    if (innerState.initSubtitle) {
+      seekTo(innerState.initSubtitle.start / 1000, "seconds");
+      const currentTime = innerState.initSubtitle.start + 1;
       const subtileFound = store.subtitles.find(
         (s: Subtitle) => s.start <= currentTime && s.end >= currentTime
       );
@@ -368,16 +280,25 @@ export const Video = ({
         store.outSideSubtitlePlayed = true;
       }
     }
-  }, [subtitle, store.outSideSubtitlePlayed, ref, store.ready, store.subtitles]);
-
-  useEffect(() => {
-    const player = ref.current;
-    if (player === null) {
+  };
+  let loopingTimer: any = null;
+  const toPlayLoopingSubtitle = () => {
+    if (store.player === null) {
       return;
     }
     if (store.playing && store.loopingSubtitle !== null) {
-      let timer = setInterval(() => {
-        const currentTime = player.getCurrentTime() * 1000;
+      if (loopingTimer) {
+        clearInterval(loopingTimer);
+      }
+      loopingTimer = setInterval(() => {
+        if (store.player === null) {
+          return;
+        }
+        if (!store.playing) {
+          clearInterval(loopingTimer);
+          return;
+        }
+        const currentTime = store.player.getCurrentTime() * 1000;
         console.log("while looping, currentTime: ", currentTime);
         if (store.loopingSubtitle === null) {
           return;
@@ -388,31 +309,33 @@ export const Video = ({
           seekTo(store.loopingSubtitle.start / 1000, "seconds");
         }
       }, 50);
-      return () => {
-        clearInterval(timer);
-      };
     }
-  }, [store.playing, ref, store.loopingSubtitle]);
+  };
 
-  useEffect(() => {
-    console.log("debug-002 effect executed");
-    const player = ref.current;
-    if (player === null) {
-      return;
-    }
-    if (store.loopingSubtitle) {
-      console.log("debug-002 loopingSubtitle === true");
-      return;
-    }
-    if (store.intensive) {
+  let playNormalTimer: NodeJS.Timeout | null = null;
+
+  const toPlayNormally = ([playing, player, subtitles, loopingSubtitle, intensive, intensiveSubtitle]: [boolean, ReactPlayer | null, Subtitle[], Subtitle | null, boolean, Subtitle | null]) => {
+    console.log('check toPlayNormally:', playing, player, subtitles, loopingSubtitle, intensive, intensiveSubtitle);
+    console.log('check toPlayNormally intensive:', intensive);
+    if (playing === false || player === null || store.loopingSubtitle || store.intensive) {
+      if (playNormalTimer) {
+        clearInterval(playNormalTimer);
+      }
       return;
     }
     console.log("debug-002 playing:", store.playing);
-    console.log("debug-002 playing && autoPlayBySubtitle === true");
     store.playbackRate = 1;
-    let timer = setInterval(() => {
+    if (playNormalTimer) {
+      clearInterval(playNormalTimer);
+    }
+    playNormalTimer = setInterval(() => {
+      console.log('toPlayNormally timer running....');
       if (!store.playing) {
-        console.log("debug-002 playing === false");
+        console.log('playNormalTimer:', playNormalTimer);
+        if (playNormalTimer) {
+          console.log('clear playNormalTimer...');
+          clearInterval(playNormalTimer);
+        }
         return;
       }
       const currentSubtitle: Subtitle = store.subtitles[store.scrollToIndex];
@@ -428,9 +351,7 @@ export const Video = ({
       if (subtileFound) {
         console.log("debug-002 subtileFound:", subtileFound);
         const nextIndex = store.subtitles.findIndex((s: Subtitle) => s === subtileFound);
-        // if (store.scrollToIndex < store.subtitles.length -1 && store.scrollToIndex > nextIndex) {
-        //   return;
-        // }
+
         store.scrollToIndex = nextIndex;
         console.log('debug-002  setScrollToIndex: ', store.scrollToIndex);
         if (store.intensiveSubtitle !== subtileFound) {
@@ -441,15 +362,18 @@ export const Video = ({
         console.log('debug-002  no subtileFound');
       }
     }, 50);
-    return () => {
-      console.log("clear timer");
-      clearInterval(timer);
-    };
-  }, [store.playing, ref.current, store.subtitles, store.loopingSubtitle, store.intensive, store.intensiveSubtitle]);
+    console.log('set playNormalTimer timer:', playNormalTimer);
+  };
 
-  useEffect(() => {
-    // 精读 effect
-    const player = ref.current;
+  const toPlayIntensively = () => {
+    if (!store.intensive) {
+      console.log('check toPlayIntensively, clear toPlayIntensively');
+      clearInterval(store.intensiveTimer);
+      store.intensiveStrategyIndex = 0;
+      store.intensiveSubtitle = null;
+      return;
+    }
+    const player = store.player;
     if (player === null) {
       return;
     }
@@ -459,15 +383,17 @@ export const Video = ({
     if (!store.playing) {
       return;
     }
-    if (!store.intensive) {
-      return;
-    }
     const findSubtitleByTime = (time: number) => {
       return store.subtitles.find(
         (s: Subtitle) => s.start <= time && s.end > time
       ) || null;
     }
     let timer = setInterval(() => {
+      console.log('toPlayIntensively timer running....');
+      if (!store.playing) {
+        clearInterval(timer);
+        return;
+      }
       const currentTime = player.getCurrentTime() * 1000;
       if (store.intensiveSubtitle === null || store.intensiveSubtitle === undefined) {
         let subtileFound = findSubtitleByTime(currentTime);
@@ -480,24 +406,27 @@ export const Video = ({
         }
         return;
       }
+      const innerState = getInnerState();
       console.log('check intensiveStrategyIndex, currentTime:', currentTime);
+      console.log('toPlayIntensively innerState.userPreference:', innerState.userPreference);
+      console.log('toPlayIntensively innerState.userPreference.intensiveStrategy:', innerState.userPreference.intensiveStrategy);
       const outOfIntensiveTime = currentTime > store.intensiveSubtitle.end - 1;
-      const intensiveStrategyNotFinished = store.intensiveStrategyIndex < userPreference.intensiveStrategy.length - 1;
+      const intensiveStrategyNotFinished = store.intensiveStrategyIndex < innerState.userPreference.intensiveStrategy.length - 1;
       if (outOfIntensiveTime && intensiveStrategyNotFinished) { // 离开精听片段，但策略未播放完毕
         const nextIntensiveStrategyIndex = store.intensiveStrategyIndex + 1;
         store.intensiveStrategyIndex = nextIntensiveStrategyIndex;
-        let currentPlayHow = userPreference.intensiveStrategy[nextIntensiveStrategyIndex];
+        let currentPlayHow = innerState.userPreference.intensiveStrategy[nextIntensiveStrategyIndex];
         store.playbackRate = currentPlayHow.speed;
         seekTo(store.intensiveSubtitle.start / 1000);
         return;
       }
       const duringIntensive = currentTime < store.intensiveSubtitle.end && currentTime > store.intensiveSubtitle.start; 
       if (duringIntensive) { // 进入当前精听片段
-        if (store.intensiveSwithing) {
-          console.log('intensiveSwithing finished');
-          store.intensiveSwithing = false; // 切换完毕
+        if (store.intensiveSwitching) {
+          console.log('intensiveSwitching finished');
+          store.intensiveSwitching = false; // 切换完毕
           const nextIntensiveStrategyIndex = 0;
-          let currentPlayHow = userPreference.intensiveStrategy[nextIntensiveStrategyIndex];
+          let currentPlayHow = innerState.userPreference.intensiveStrategy[nextIntensiveStrategyIndex];
           store.playbackRate = currentPlayHow.speed;
           store.intensiveStrategyIndex = nextIntensiveStrategyIndex;
           store.scrollToIndex += 1;
@@ -507,61 +436,159 @@ export const Video = ({
         currentTime < store.intensiveSubtitle.start - 1 ||
         currentTime > store.intensiveSubtitle.end + 1
       ) {
-        if (store.intensiveStrategyIndex < userPreference.intensiveStrategy.length - 1) {
+        if (store.intensiveStrategyIndex < innerState.userPreference.intensiveStrategy.length - 1) {
           return;
         }
         store.intensiveSubtitle = store.subtitles[store.scrollToIndex + 1];
-        console.log('intensiveSwithing started');
-        store.intensiveSwithing = true; 
+        console.log('intensiveSwitching started');
+        store.intensiveSwitching = true; 
       }
     }, 50);
-    console.log('debug-001, setInterval timer:', timer);
     store.intensiveTimer = timer;
-    return () => {
-      console.log('debug-001, clearInterval timer:', timer);
-      clearInterval(timer);
-    };
-  }, [store.playing, ref, store.subtitles, store.loopingSubtitle, store.intensive, userPreference.intensiveStrategy, store.intensiveStrategyIndex, store.intensiveSubtitle, store.intensiveSwithing]);
+  };
 
-  useEffect(() => {
-    getSubtitlesOfVideo(filePath).then((subtitles) => {
-      console.log("got subtitles of ", filePath, " ==> ", subtitles);
-      store.subtitles = subtitles || [];
+  const takeActions = () => {
+    takeActionOnStreams(([scrollToIndex, subtitles]) => {
+      console.log('takeActionOnStreams: save Records on scrollToIndex, subtitles changed to:', scrollToIndex, subtitles);
+      if (!store.subtitles || store.subtitles.length === 0 || !store.subtitles[store.scrollToIndex]) {
+        return;
+      }
+      const innerState = getInnerState();
+      if (!innerState) {
+        return;
+      }
+      console.log('toSaveRecord... ');
+      saveRecord({
+        file: innerState.filePath,
+        progress: store.subtitles[store.scrollToIndex],
+        type: 'video',
+      });
+      playSubtitleRecord$.next({
+        ...store.subtitles[store.scrollToIndex],
+        file: innerState.filePath,
+        zoneId: innerState.zoneId,
+      });
+    }, store.scrollToIndex$, store.subtitles$);
+    takeActionOnStreams(toListenRemoteControl, store.player$);
+    takeActionOnStreams(toPlayInitialSubtitle, store.outSideSubtitlePlayed$, store.player$, store.ready$, store.subtitles$);
+    takeActionOnStreams(toPlayLoopingSubtitle, store.playing$, store.loopingSubtitle$);
+    takeActionOnStreams(toPlayNormally, store.playing$, store.player$, store.subtitles$, store.loopingSubtitle$, store.intensive$, store.intensiveSubtitle$);
+    takeActionOnStreams(toPlayIntensively, store.intensive$, store.playing$);
+  };
+
+  const RenderVideo = ({
+    filePath,
+    subtitle,
+    style,
+    title,
+    zoneId,
+    layoutMode,
+  }: {
+    style: CSSProperties;
+    filePath: string;
+    subtitle?: Subtitle;
+    zoneId: string;
+    title: string;
+    layoutMode: number;
+  }) => {
+    const [userPreference] = useBehavior(userPreference$, {} as UserPreference);
+
+    renderOnStore({
+      filePath,
+      zoneId,
+      initSubtitle: subtitle,
+      userPreference,
     });
-  }, [filePath]);
 
-  const url = `http://${host}:8080/resource` + filePath;
-  console.log("play url:", url);
-
-  console.log('render video, player:', store.player);
-
-  const [playlistPromise] = useState(getPlaylistByPlayingVideo(filePath));
-
-
-  return (
-    <div
-      className={styles.VideoWrapper}
-      style={{
-        ...style,
-        display: "flex",
-        flexDirection: layoutMode === 0 ? "column" : "row",
-        alignItems: "center",
-        justifyContent: layoutMode === 0 ? 'flex-start' : 'space-between',
-        overflow: 'hidden',
-        position: 'relative',
-        cursor: store.inTVModeFullScreen ? 'none' : 'auto',
-      }}
-      ref={wrapperRef}
-      tabIndex={0}
-      onKeyDown={(e) => {
-        const key = e.key.toLowerCase();
-        console.log('wrapper key down:', key);
-        if (key === " ".toLowerCase() && store.inTVModeFullScreen) {
-          store.playing ? store.player?.getInternalPlayer().pause() : store.player?.getInternalPlayer().play();
+    useEffect(() => {
+      takeActions();
+      return () => {
+        ({store, renderOnStore, getInnerState} = initVideoStore());
+        if (playNormalTimer !== null) {
+          clearInterval(playNormalTimer);
         }
-        if (key === "mediatrackprevious".toLowerCase()) {
-          closeZone$.next(zoneId);
-          playlistPromise.then(playlist => {
+        if (store.intensiveTimer) {
+          clearInterval(store.intensiveTimer);
+        }
+        if (store.showProgressTimer) {
+          clearTimeout(store.showProgressTimer);
+        }
+        if (loopingTimer) {
+          clearInterval(loopingTimer);
+        }
+      };
+    }, []);
+
+    const ref = useRef<ReactPlayer | null>(null);
+    const wrapperRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+      if (userPreference.tvMode && wrapperRef.current) {
+        setTimeout(() => {
+          fullscreen().then(() => {
+            store.inTVModeFullScreen = true;
+            store.player?.getInternalPlayer().play().catch((e: any) => message.error(e.toString()));
+            wrapperRef.current!.focus();
+            isFullscreen$.subscribe({
+              next(isFullscreen) {
+                if (!isFullscreen) {
+                  closeZone$.next(zoneId);
+                }
+              }
+            });
+          }).catch((e: any) => message.error(e.toString()));
+        }, 100);
+      }
+    }, [userPreference.tvMode, zoneId, wrapperRef]);
+
+    useEffect(() => {
+      if (ref.current !== null) {
+        store.player = ref.current;
+      }
+    }, [ref.current]);
+
+    const [playlist, setPlayList] = useState([] as string[]);
+
+    useEffect(() => {
+      getSubtitlesOfVideo(filePath).then((subtitles) => {
+        console.log("got subtitles of ", filePath, " ==> ", subtitles);
+        store.subtitles = subtitles || [];
+      });
+      getPlaylistByPlayingVideo(filePath).then((playlist) => {
+        setPlayList(playlist);
+      });
+    }, [filePath]);
+
+    const url = `http://${host}:8080/resource` + filePath;
+    console.log("play url:", url);
+
+    console.log('render video, player:', store.player);
+
+
+
+    return (
+      <div
+        className={styles.VideoWrapper}
+        style={{
+          ...style,
+          display: "flex",
+          flexDirection: layoutMode === 0 ? "column" : "row",
+          alignItems: "center",
+          justifyContent: layoutMode === 0 ? 'flex-start' : 'space-between',
+          overflow: 'hidden',
+          position: 'relative',
+          cursor: store.inTVModeFullScreen ? 'none' : 'auto',
+        }}
+        ref={wrapperRef}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          const key = e.key.toLowerCase();
+          console.log('wrapper key down:', key);
+          if (key === " ".toLowerCase() && store.inTVModeFullScreen) {
+            store.playing ? store.player?.getInternalPlayer().pause() : store.player?.getInternalPlayer().play();
+          }
+          if (key === "mediatrackprevious".toLowerCase()) {
+            closeZone$.next(zoneId);
             console.log('mediatrackprevious..');
             const index = playlist.findIndex((file) => filePath === file);
             let prevIndex = index - 1;
@@ -576,11 +603,9 @@ export const Video = ({
                 subtitles: []
               });
             }, 100);
-          });
-        }
-        if (key === "mediatracknext".toLowerCase()) {
-          closeZone$.next(zoneId);
-          playlistPromise.then(playlist => {
+          }
+          if (key === "mediatracknext".toLowerCase()) {
+            closeZone$.next(zoneId);
             console.log('mediatracknext..');
             const index = playlist.findIndex((file) => filePath === file);
             let nextIndex = index + 1;
@@ -595,224 +620,226 @@ export const Video = ({
                 subtitles: []
               });
             }, 100);
-          });
-        }
-        
-        const currentTime = (store.player?.getCurrentTime() || 0);
-        if (key === "arrowright".toLowerCase()) {
-          store.progress = (currentTime + 9.5) / (store.player?.getDuration() || 1);
-
-          seekTo(currentTime + 9.5, "seconds");
-        }
-        if (key === "arrowleft".toLowerCase()) {
-          store.progress = (currentTime - 9.5) / (store.player?.getDuration() || 1);
-          seekTo(currentTime - 9.5, "seconds");
-        }
-        store.progress > 1 && (store.progress = 1);
-        store.progress < 0 && (store.progress = 0);
-        if (key === "arrowleft".toLowerCase() || key === "arrowright".toLowerCase()) {
-          store.showProgress = true;
-          if (store.showProgressTimer !== -1) {
-            clearTimeout(store.showProgressTimer);
           }
-          store.showProgressTimer = setTimeout(() => {
-            store.showProgress = false;
-          }, 2000);
-        }
+          
+          const currentTime = (store.player?.getCurrentTime() || 0);
+          if (key === "arrowright".toLowerCase()) {
+            store.progress = (currentTime + 9.5) / (store.player?.getDuration() || 1);
 
-      }}
-      onContextMenu={(e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        return false;
-      }}
-      onMouseUp={(e) => {
-        if(e.button == 2 && store.inTVModeFullScreen) {
-          requestAnimationFrame(() => closeZone$.next(zoneId));
-        }
-      }}
-      onClick={() => {
-        if (!store.inTVModeFullScreen) {
-          return;
-        }
-        store.playing ? store.player?.getInternalPlayer().pause() : store.player?.getInternalPlayer().play();
-      }}
-    >
-      <Resizable
-        maxWidth={layoutMode === 0 ? '100%' : '70%'}
-        minWidth="356px"
-        minHeight="200px"
-        handleStyles={{
-          left: {
-            display: "flex",
-            alignItems: "center",
-            height: "100%",
-            width: "25px",
-            left: "-12.5px",
-          },
-          right: {
-            display: "flex",
-            alignItems: "center",
-            height: "100%",
-            width: "25px",
-            right: "-12.5px",
-          },
+            seekTo(currentTime + 9.5, "seconds");
+          }
+          if (key === "arrowleft".toLowerCase()) {
+            store.progress = (currentTime - 9.5) / (store.player?.getDuration() || 1);
+            seekTo(currentTime - 9.5, "seconds");
+          }
+          store.progress > 1 && (store.progress = 1);
+          store.progress < 0 && (store.progress = 0);
+          if (key === "arrowleft".toLowerCase() || key === "arrowright".toLowerCase()) {
+            store.showProgress = true;
+            if (store.showProgressTimer !== -1) {
+              clearTimeout(store.showProgressTimer);
+            }
+            store.showProgressTimer = setTimeout(() => {
+              store.showProgress = false;
+            }, 2000);
+          }
+
         }}
-        handleComponent={{
-          left: store.inTVModeFullScreen ? undefined : (
-            <div
-              style={{
-                width: "25px",
-                height: "25px",
-                borderRadius: "50%",
-                background: "#a976ec",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-              }}
-            >
-              <div
-                style={{
-                  width: "15px",
-                  height: "15px",
-                  borderRadius: "50%",
-                  background: "#ccc",
-                }}
-              ></div>
-            </div>
-          ),
-          right: store.inTVModeFullScreen ? undefined : (
-            <div
-              style={{
-                width: "25px",
-                height: "25px",
-                borderRadius: "50%",
-                background: "#a976ec",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-              }}
-            >
-              <div
-                style={{
-                  width: "15px",
-                  height: "15px",
-                  borderRadius: "50%",
-                  background: "#ccc",
-                }}
-              ></div>
-            </div>
-          ),
+        onContextMenu={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          return false;
         }}
-        enable={{
-          right: store.videoFocus && true,
-          left: store.videoFocus && true,
+        onMouseUp={(e) => {
+          if(e.button === 2 && store.inTVModeFullScreen) {
+            requestAnimationFrame(() => closeZone$.next(zoneId));
+          }
         }}
-        defaultSize={{
-          width: "100%",
-          height: "auto",
+        onClick={() => {
+          if (!store.inTVModeFullScreen) {
+            return;
+          }
+          store.playing ? store.player?.getInternalPlayer().pause() : store.player?.getInternalPlayer().play();
         }}
       >
-        <div
-          style={{ width: "100%", position: "relative", paddingTop: "56.25%" }}
-          tabIndex={0}
-          onFocus={() => {
-            store.videoFocus = true;
+        <Resizable
+          maxWidth={layoutMode === 0 ? '100%' : '70%'}
+          minWidth="356px"
+          minHeight="200px"
+          handleStyles={{
+            left: {
+              display: "flex",
+              alignItems: "center",
+              height: "100%",
+              width: "25px",
+              left: "-12.5px",
+            },
+            right: {
+              display: "flex",
+              alignItems: "center",
+              height: "100%",
+              width: "25px",
+              right: "-12.5px",
+            },
           }}
-          onBlur={() => {
-            store.videoFocus = false;
+          handleComponent={{
+            left: store.inTVModeFullScreen ? undefined : (
+              <div
+                style={{
+                  width: "25px",
+                  height: "25px",
+                  borderRadius: "50%",
+                  background: "#a976ec",
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <div
+                  style={{
+                    width: "15px",
+                    height: "15px",
+                    borderRadius: "50%",
+                    background: "#ccc",
+                  }}
+                ></div>
+              </div>
+            ),
+            right: store.inTVModeFullScreen ? undefined : (
+              <div
+                style={{
+                  width: "25px",
+                  height: "25px",
+                  borderRadius: "50%",
+                  background: "#a976ec",
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <div
+                  style={{
+                    width: "15px",
+                    height: "15px",
+                    borderRadius: "50%",
+                    background: "#ccc",
+                  }}
+                ></div>
+              </div>
+            ),
+          }}
+          enable={{
+            right: store.videoFocus && true,
+            left: store.videoFocus && true,
+          }}
+          defaultSize={{
+            width: "100%",
+            height: "auto",
           }}
         >
-          <ReactPlayer
-            ref={ref}
-            url={url}
-            playing={store.playing}
-            playbackRate={store.playbackRate}
-            onPlaybackRateChange={(rate: number) => {
-              store.playbackRate = rate;
+          <div
+            style={{ width: "100%", position: "relative", paddingTop: "56.25%" }}
+            tabIndex={0}
+            onFocus={() => {
+              store.videoFocus = true;
             }}
-            width="100%"
-            height="100%"
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              minHeight: "200px",
+            onBlur={() => {
+              store.videoFocus = false;
             }}
-            onReady={() => {
-              store.ready = true;
-            }}
-            onPause={() => store.playing = false}
-            onPlay={() => store.playing  = true}
-            playsinline
-            loop
-            controls={!store.inTVModeFullScreen}
-            onError={(err, data) => {
-              console.log("video error:", err);
-              console.log("video error data:", data);
-            }}
-          />
+          >
+            <ReactPlayer
+              ref={ref}
+              url={url}
+              playing={store.playing}
+              playbackRate={store.playbackRate}
+              onPlaybackRateChange={(rate: number) => {
+                store.playbackRate = rate;
+              }}
+              width="100%"
+              height="100%"
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                minHeight: "200px",
+              }}
+              onReady={() => {
+                store.ready = true;
+              }}
+              onPause={() => store.playing = false}
+              onPlay={() => store.playing  = true}
+              playsinline
+              loop
+              controls={!store.inTVModeFullScreen}
+              onError={(err, data) => {
+                console.log("video error:", err);
+                console.log("video error data:", data);
+              }}
+            />
+          </div>
+        </Resizable>
+        {store.showProgress && <div style={{fontSize: '60px', position: 'fixed', right: '14px', top: '14px', color: '#fff'}}>
+          {(store.progress * 100).toFixed(2)} %
+        </div>}
+        <div style={{
+          display: 'flex',
+          ...(store.inTVModeFullScreen ? {
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            width: '100%',
+          } : {
+            width: '100%',
+            minWidth: '200px',
+            flexGrow: 1,
+            height: '100%',
+          })
+        }}>
+          {store.player !== null && (
+            <SubtitleComponent
+              inTVModeFullScreen={store.inTVModeFullScreen}
+              fromZoneId={zoneId}
+              title={title}
+              filePath={filePath}
+              subtitles$={store.subtitles$}
+              playing$={store.playing$}
+              seekTo={(time) => {
+                console.log('debug seeking:', time);
+                seekTo(time, 'seconds');
+              }}
+              loopingSubtitle$={store.loopingSubtitle$}
+              scrollToIndex$={store.scrollToIndex$}
+              intensive$={store.intensive$}
+              intensiveStrategyIndex$={store.intensiveStrategyIndex$}
+              onSubtitlesChange={(nextSubtitles: Subtitle[]) => {
+                setSubtitles(nextSubtitles);
+              }}
+              onScrollToIndexChange={(nextScrollToIndex: number) => {
+                console.log('debug onScrollToIndexChange:', nextScrollToIndex);
+                setScrollToIndex(nextScrollToIndex);
+              }}
+              onLoopingSubtitleChange={(subtitle: Subtitle | null) => {
+                setSubtitleLooping(subtitle);
+                store.intensive = false;
+                store.intensiveStrategyIndex = 0;
+                store.intensiveSubtitle = null;
+              }}
+              onPlayingChange={(playing: boolean) => {
+                store.playing = playing;
+              }}
+              onIntensiveChange={(intensive) => {
+                store.intensive = intensive;
+                store.intensiveStrategyIndex = 0;
+                store.loopingSubtitle = null;
+                store.intensiveSubtitle = null;
+              }}
+            />
+          )}
         </div>
-      </Resizable>
-      {store.showProgress && <div style={{fontSize: '60px', position: 'fixed', right: '14px', top: '14px', color: '#fff'}}>
-        {(store.progress * 100).toFixed(2)} %
-      </div>}
-      <div style={{
-        display: 'flex',
-        ...(store.inTVModeFullScreen ? {
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          width: '100%',
-        } : {
-          width: '100%',
-          minWidth: '200px',
-          flexGrow: 1,
-          height: '100%',
-        })
-      }}>
-        {store.player !== null && (
-          <SubtitleComponent
-            inTVModeFullScreen={store.inTVModeFullScreen}
-            layoutMode={0}
-            fromZoneId={zoneId}
-            title={title}
-            filePath={filePath}
-            subtitles$={store.subtitles$}
-            playing$={store.playing$}
-            seekTo={(time) => {
-              console.log('debug seeking:', time);
-              seekTo(time, 'seconds');
-            }}
-            loopingSubtitle$={store.loopingSubtitle$}
-            scrollToIndex$={store.scrollToIndex$}
-            intensive$={store.intensive$}
-            intensiveStrategyIndex$={store.intensiveStrategyIndex$}
-            onSubtitlesChange={(nextSubtitles: Subtitle[]) => {
-              setSubtitles(nextSubtitles);
-            }}
-            onScrollToIndexChange={(nextScrollToIndex: number) => {
-              console.log('debug onScrollToIndexChange:', nextScrollToIndex);
-              setScrollToIndex(nextScrollToIndex);
-            }}
-            onLoopingSubtitleChange={(subtitle: Subtitle | null) => {
-              setSubtitleLooping(subtitle);
-              store.intensive = false;
-              store.intensiveStrategyIndex = 0;
-              store.intensiveSubtitle = null;
-            }}
-            onPlayingChange={(playing: boolean) => {
-              store.playing = playing;
-            }}
-            onIntensiveChange={(intensive) => {
-              store.intensive = intensive;
-              store.intensiveStrategyIndex = 0;
-              store.loopingSubtitle = null;
-              store.intensiveSubtitle = null;
-            }}
-          />
-        )}
       </div>
-    </div>
-  );
-};
+    );
+  };
+  return RenderVideo;
+}
+
+export const Video = CreateVideoComponent();

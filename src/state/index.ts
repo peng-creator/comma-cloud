@@ -9,12 +9,13 @@ export const useObservable = <T, S extends Observable<T>>(
   const [value, setValue] = useState<T>(initailValue);
   useEffect(() => {
     const subscription = source.subscribe({
-      next: (value) => {
-        setValue(value);
+      next: (newValue) => {
+        console.log('debug on set value to useObservable inner state, source:', source, ', new value:', newValue, ', old value:', value, ' changed:', newValue !== value);
+        setValue(newValue);
       },
     });
     return () => subscription.unsubscribe();
-  }, [source]);
+  }, [source, value]);
   return [value];
 };
 
